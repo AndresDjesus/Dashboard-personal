@@ -1,30 +1,28 @@
-// src/App.jsx
-import { AppShell, Header, Title, Group, Text } from '@mantine/core'; // Importa componentes de Mantine
-import { useEffect } from 'react'; // Necesario para efectos secundarios, como cargar datos
-
-// Esto es un placeholder por ahora, lo usaremos después
-// import { cargarDatos, guardarDatos } from './utils/localStorageUtils';
+import { AppShell, Group, Title, Text, SimpleGrid } from '@mantine/core';
+import EstudioSection from './components/EstudioSection'; // Asegúrate que esta ruta sea correcta
 
 function App() {
-    // Aquí irá la lógica principal de tu dashboard
-    // Por ahora, solo una estructura simple
-
     return (
         <AppShell
             header={{ height: 60 }}
             padding="md"
+            // AppShell requiere un 'footer' explícito si lo usas, aunque esté vacío.
+            // Si AppShell no te funciona, puedes intentar con un div simple por ahora.
         >
             <AppShell.Header>
-                <Group h="100%" px="md" position="center">
+                <Group h="100%" px="md" style={{ justifyContent: 'center' }}> {/* Usar justifyContent */}
                     <Title order={1} style={{ color: 'white' }}>Mi Dashboard Personal</Title>
                 </Group>
             </AppShell.Header>
 
             <AppShell.Main>
-                {/* Aquí es donde se renderizarán tus diferentes secciones del dashboard */}
-                <Text ta="center" size="xl">¡Bienvenido a tu nuevo dashboard!</Text>
-                <Text ta="center" size="md" mt="xs">Estamos construyendo esto con React y Mantine.</Text>
-                {/* Agrega más componentes aquí en los próximos pasos */}
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
+                    <EstudioSection />
+                </SimpleGrid>
+
+                <Text ta="center" size="sm" mt="md">
+                    ¡Empieza a registrar tus datos!
+                </Text>
             </AppShell.Main>
 
             <AppShell.Footer p="md" style={{ textAlign: 'center' }}>
