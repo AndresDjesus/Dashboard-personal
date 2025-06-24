@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.jsx'; // Asegúrate que la ruta sea correcta, .jsx es importante
+import App from './App.jsx'; 
 import { MantineProvider } from '@mantine/core';
-import '@mantine/core/styles.css'; // ¡Esta línea es CRÍTICA para los estilos!
+import '@mantine/core/styles.css'; 
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

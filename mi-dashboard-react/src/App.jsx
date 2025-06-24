@@ -1,5 +1,6 @@
 import { AppShell, Group, Title, Text, SimpleGrid } from '@mantine/core';
-import EstudioSection from './components/EstudioSection'; // Asegúrate que esta ruta sea correcta
+import EstudioSection from './components/EstudioSection'; 
+import EjercicioSection from './components/EjercicioSection';
 
 function App() {
     return (
@@ -18,6 +19,7 @@ function App() {
             <AppShell.Main>
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
                     <EstudioSection />
+                    <EjercicioSection />
                 </SimpleGrid>
 
                 <Text ta="center" size="sm" mt="md">
