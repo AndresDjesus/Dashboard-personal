@@ -3,6 +3,7 @@ import { NumberInput, Button, Box, Paper, Title, Group, Text } from '@mantine/co
 import { Bar } from 'react-chartjs-2'; // Componente de Chart.js para React
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { cargarDatos, guardarDatos, getDiaActual } from '../utils/localStorageUtils';
+import { IconBook } from '@tabler/icons-react';
 
 // Registra los componentes necesarios de Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend);
@@ -86,7 +87,10 @@ function EstudioSection() {
 
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
-            <Title order={2} ta="center" mb="md">Horas de Estudio Semanales</Title>
+             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <IconBook size={28} />
+                    Horas de Estudio Semanales
+             </Title>
             <Box style={{ position: 'relative', height: '300px', width: '100%' }}>
                 {/* El componente <Bar /> de react-chartjs-2 */}
                 <Bar data={chartData} options={chartOptions} />

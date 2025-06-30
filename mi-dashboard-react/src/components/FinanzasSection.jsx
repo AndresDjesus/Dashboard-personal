@@ -1,65 +1,62 @@
+// src/components/FinanzasSection.jsx
 import React, { useState, useEffect } from 'react';
 import { NumberInput, Button, Box, Paper, Title, Group, Select } from '@mantine/core';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { cargarDatos, guardarDatos, getDiaActual } from '../utils/localStorageUtils';
-
+import { IconCash } from '@tabler/icons-react';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend);
 
 const labelsDiasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-function FinanzasSection() {
+// Ahora recibe datosFinanzas y onUpdateFinances como props
+function FinanzasSection({ datosFinanzas, onUpdateFinances }) {
+    // ESTADO: Ya no maneja datosFinanzas internamente, los recibe como prop.
 
-    const [datosFinanzas, setDatosFinanzas] = useState(() =>
-        cargarDatos('datosFinanzas', { ingresos: [0, 0, 0, 0, 0, 0, 0], gastos: [0, 0, 0, 0, 0, 0, 0] })
-    );
-
-  
     const [tipoTransaccion, setTipoTransaccion] = useState('gasto');
-  
     const [montoTransaccion, setMontoTransaccion] = useState(0);
 
-  
+    // Efecto para inicializar el monto del input con 0 cada vez que se carga el componente
+    // o se guarda una transacción (para evitar que se quede el último valor)
     useEffect(() => {
         setMontoTransaccion(0);
-    }, [datosFinanzas]); 
+    }, [datosFinanzas]); // Depende de datosFinanzas para reiniciarse
 
-    // Datos para el gráfico de finanzas
+    // Datos para el gráfico de finanzas (usa la prop datosFinanzas)
     const chartData = {
         labels: labelsDiasSemana,
         datasets: [
             {
                 label: 'Ingresos',
                 data: datosFinanzas.ingresos,
-                backgroundColor: 'rgba(75, 192, 192, 0.8)', 
+                backgroundColor: 'rgba(75, 192, 192, 0.8)',
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1,
             },
             {
                 label: 'Gastos',
                 data: datosFinanzas.gastos,
-                backgroundColor: 'rgba(255, 99, 132, 0.8)', 
+                backgroundColor: 'rgba(255, 99, 132, 0.8)',
                 borderColor: 'rgba(255, 99, 132, 1)',
                 borderWidth: 1,
             },
         ],
     };
 
-    // Opciones del gráfico de finanzas (apilado)
     const chartOptions = {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
             x: {
-                stacked: true, 
+                stacked: false, // Deshabilita el apilamiento en el eje X para que los valores de cada barra sean el monto total
                 title: {
                     display: true,
                     text: 'Día de la Semana'
                 }
             },
             y: {
-                stacked: false, 
+                stacked: false,
                 beginAtZero: true,
                 title: {
                     display: true,
@@ -71,6 +68,9 @@ function FinanzasSection() {
             legend: {
                 display: true,
                 position: 'top',
+                labels: {
+                    color: 'white' // Ajusta el color de la leyenda para el modo oscuro
+                }
             },
             tooltip: {
                 callbacks: {
@@ -82,25 +82,28 @@ function FinanzasSection() {
         },
     };
 
-    // Manejador del botón Guardar Transacción
     const handleSaveTransaccion = () => {
         if (!isNaN(montoTransaccion) && montoTransaccion >= 0) {
             const diaActual = getDiaActual();
-            
             const nuevosDatosFinanzas = {
                 ingresos: [...datosFinanzas.ingresos],
                 gastos: [...datosFinanzas.gastos]
             };
 
-          
             const claveDatos = tipoTransaccion === 'gasto' ? 'gastos' : 'ingresos';
 
-            
-            nuevosDatosFinanzas[claveDatos][diaActual] = montoTransaccion;
+            if (nuevosDatosFinanzas[claveDatos] && typeof nuevosDatosFinanzas[claveDatos][diaActual] !== 'undefined') {
+                nuevosDatosFinanzas[claveDatos][diaActual] = montoTransaccion;
+                guardarDatos('datosFinanzas', nuevosDatosFinanzas);
 
-            setDatosFinanzas(nuevosDatosFinanzas);
-            guardarDatos('datosFinanzas', nuevosDatosFinanzas); 
-            alert(`Transacción de ${tipoTransaccion} guardada!`);
+                // Llama a la función prop para actualizar el estado en el componente padre (App.jsx)
+                onUpdateFinances(nuevosDatosFinanzas);
+
+                alert(`Transacción de ${tipoTransaccion} guardada!`);
+            } else {
+                console.error(`Error: La estructura de datos para "${claveDatos}" o el índice "${diaActual}" no es válida.`);
+                alert('Hubo un problema al guardar la transacción. Revisa la consola.');
+            }
         } else {
             alert('Por favor, ingresa un monto válido para la transacción.');
         }
@@ -108,9 +111,11 @@ function FinanzasSection() {
 
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
-            <Title order={2} ta="center" mb="md">Gastos e Ingresos Diarios</Title>
+                  <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <IconCash size={28} />
+                    Finanzas
+                     </Title>
             <Box style={{ position: 'relative', height: '300px', width: '100%' }}>
-                {/* El componente <Bar /> para finanzas */}
                 <Bar data={chartData} options={chartOptions} />
             </Box>
             <Group grow mt="md">
@@ -118,7 +123,7 @@ function FinanzasSection() {
                     label="Tipo de Transacción:"
                     placeholder="Selecciona tipo"
                     value={tipoTransaccion}
-                    onChange={setTipoTransaccion} 
+                    onChange={setTipoTransaccion}
                     data={[
                         { value: 'ingreso', label: 'Ingreso' },
                         { value: 'gasto', label: 'Gasto' },
@@ -129,13 +134,13 @@ function FinanzasSection() {
                     label="Monto ($):"
                     placeholder="Ingresa monto"
                     min={0}
-                    step={5} // Paso de 5 en 5 para montos
+                    step={5}
                     value={montoTransaccion}
                     onChange={setMontoTransaccion}
-                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')} 
+                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
                     formatter={(value) =>
                         !Number.isNaN(parseFloat(value))
-                            ? `$ ${value}`.replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ',') 
+                            ? `$ ${value}`.replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ',')
                             : '$ '
                     }
                     sx={{ flexGrow: 1 }}

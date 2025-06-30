@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { NumberInput, Button, Box, Paper, Title, Group, Text, Alert, Progress } from '@mantine/core';
 import { Pie } from 'react-chartjs-2'; // Importamos Pie para gráficos circulares
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { cargarDatos, guardarDatos } from '../utils/localStorageUtils'; // No necesitamos getDiaActual aquí directamente
+import { cargarDatos, guardarDatos } from '../utils/localStorageUtils'; 
+import { IconCash } from '@tabler/icons-react';
 
 // Registra los componentes necesarios de Chart.js para el gráfico de pastel/anillo
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -82,7 +83,10 @@ function PresupuestoSection({ datosFinanzas }) { // Recibiremos datosFinanzas co
 
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
-            <Title order={2} ta="center" mb="md">Presupuesto Mensual</Title>
+             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+        <IconCash size={28} />
+        Presupuesto Mensual
+         </Title>
 
             {/* Input y botón para establecer el presupuesto */}
             <Group grow mt="md" mb="xl">

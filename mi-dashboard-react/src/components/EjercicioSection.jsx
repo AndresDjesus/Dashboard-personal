@@ -3,6 +3,7 @@ import { NumberInput, Button, Box, Paper, Title, Group } from '@mantine/core';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { cargarDatos, guardarDatos, getDiaActual } from '../utils/localStorageUtils';
+import { IconBarbell } from '@tabler/icons-react'; 
 
 // Registra los componentes necesarios de Chart.js para el gráfico de línea
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTitle, Tooltip, Legend);
@@ -89,7 +90,10 @@ function EjercicioSection() {
 
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
-            <Title order={2} ta="center" mb="md">Horas de Ejercicio Semanales</Title> {/* Cambiado a Horas */}
+              <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <IconBarbell size={28} />
+                    Horas de Ejercicio Semanales
+              </Title>
             <Box style={{ position: 'relative', height: '300px', width: '100%' }}>
                 <Line data={chartData} options={chartOptions} />
             </Box>
