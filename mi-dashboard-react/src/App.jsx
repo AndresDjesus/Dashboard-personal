@@ -2,6 +2,7 @@ import { AppShell, Group, Title, Text, SimpleGrid } from '@mantine/core';
 import EstudioSection from './components/EstudioSection'; 
 import EjercicioSection from './components/EjercicioSection';
 import FinanzasSection from './components/FinanzasSection';
+import PresupuestoSection from './components/PresupuestoSection';
 
 function App() {
     return (
@@ -22,6 +23,7 @@ function App() {
                     <EstudioSection />
                     <EjercicioSection />
                     <FinanzasSection />
+                    <PresupuestoSection />
                 </SimpleGrid>
 
                 <Text ta="center" size="sm" mt="md">
