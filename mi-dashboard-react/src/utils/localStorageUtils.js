@@ -23,3 +23,27 @@ export function getDiaActual() {
     const hoy = new Date();
     return hoy.getDay();
 }
+
+export const getStartOfWeek = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Ajusta para que el Lunes sea el inicio (si es Domingo, retrocede 6 días)
+    const monday = new Date(today.setDate(diff));
+    return monday.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+};
+
+/**
+ * Devuelve un array con los nombres abreviados de los días de la semana, empezando por Lunes.
+ */
+export const getDiasSemanaNombres = () => ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+/**
+ * Devuelve el índice del día actual de la semana (0 para Lunes, 6 para Domingo).
+ * Esto es diferente a getDiaActual() que devuelve 0 para Domingo.
+ * Esta función está adaptada para el array que empieza en Lunes.
+ */
+export const getDiaActualIndex = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+    return (dayOfWeek === 0) ? 6 : dayOfWeek - 1; // Si es Domingo (0), lo mapea a 6 (último índice). Si no, resta 1.
+};

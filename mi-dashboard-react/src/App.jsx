@@ -7,6 +7,7 @@ import PresupuestoSection from './components/PresupuestoSection';
 import { cargarDatos } from './utils/localStorageUtils'; 
 import { IconChartBar } from '@tabler/icons-react';
 import MetasSection from './components/MetasSection';
+import HabitosSection from './components/HabitosSection';
 
 function App() {
     // Inicializa el estado de datosFinanzas aquí en App.jsx
@@ -41,6 +42,7 @@ function App() {
                     {/* Pasa datosFinanzas a PresupuestoSection */}
                     <PresupuestoSection datosFinanzas={appDatosFinanzas} />
                     <MetasSection />
+                    <HabitosSection />
                 </SimpleGrid>
 
                 <Text ta="center" size="sm" mt="md">
