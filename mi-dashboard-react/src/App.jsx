@@ -8,6 +8,7 @@ import { cargarDatos } from './utils/localStorageUtils';
 import { IconChartBar } from '@tabler/icons-react';
 import MetasSection from './components/MetasSection';
 import HabitosSection from './components/HabitosSection';
+import CitasMotivacionSection from './components/CitasMotivacionSection';
 
 function App() {
     // Inicializa el estado de datosFinanzas aquí en App.jsx
@@ -35,6 +36,7 @@ function App() {
 
             <AppShell.Main>
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
+                    <CitasMotivacionSection />
                     <EstudioSection />
                     <EjercicioSection />
                     {/* Pasa datosFinanzas y la función de actualización a FinanzasSection */}
