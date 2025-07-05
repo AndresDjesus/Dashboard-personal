@@ -19,18 +19,27 @@ export function guardarDatos(clave, datos) {
 }
 
 // Función para obtener el índice del día actual (0=Domingo, 1=Lunes, etc.)
-export function getDiaActual() {
-    const hoy = new Date();
-    return hoy.getDay();
-}
+export const getDiaActual = () => {
+    const today = new Date();
+    // Obtiene el año, mes y día
+    const year = today.getFullYear();
+    // getMonth() es base 0, así que sumamos 1. Agregamos '0' si es menor de 10.
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    // getDate() es el día del mes. Agregamos '0' si es menor de 10.
+    const day = today.getDate().toString().padStart(2, '0');
+
+    return `${year}-${month}-${day}`; // Ejemplo: "2025-07-06"
+};
 
 export const getStartOfWeek = () => {
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Ajusta para que el Lunes sea el inicio (si es Domingo, retrocede 6 días)
-    const monday = new Date(today.setDate(diff));
-    return monday.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    const day = today.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Ajusta para que el Lunes sea el primer día (día 1) de la semana
+    const startOfWeek = new Date(today.setDate(diff));
+    startOfWeek.setHours(0, 0, 0, 0); // Establece la hora a medianoche para evitar problemas de zona horaria
+    return startOfWeek; // Devuelve un objeto Date
 };
+
 
 /**
  * Devuelve un array con los nombres abreviados de los días de la semana, empezando por Lunes.

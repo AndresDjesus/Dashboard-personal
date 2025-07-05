@@ -11,6 +11,7 @@ import HabitosSection from './components/HabitosSection';
 import CitasMotivacionSection from './components/CitasMotivacionSection';
 import TareasPendientesSection from './components/TareasPendientesSection';
 import LogrosSection from './components/LogrosSection';
+import EstadoAnimoSection from './components/EstadoAnimoSection';
 
 function App() {
     // Inicializa el estado de datosFinanzas aquí en App.jsx
@@ -49,6 +50,7 @@ function App() {
                     <MetasSection />
                     <HabitosSection />
                     <LogrosSection />
+                    <EstadoAnimoSection />
                    
                 </SimpleGrid>
 
