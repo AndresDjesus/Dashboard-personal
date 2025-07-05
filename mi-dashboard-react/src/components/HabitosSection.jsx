@@ -1,9 +1,11 @@
+// src/components/HabitosSection.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Paper, Title, Text, TextInput, Button, Group, ActionIcon, rem, Box, Badge, Table, Checkbox,
 } from '@mantine/core';
-import { IconChecklist, IconTrash, IconPlus, IconX } from '@tabler/icons-react';
+import { IconChecklist, IconTrash } from '@tabler/icons-react'; // remueve IconPlus, IconX si no se usan
 
+// Asegúrate de que estas utilidades sean las últimas versiones corregidas
 import { cargarDatos, guardarDatos, getStartOfWeek, getDiasSemanaNombres, getDiaActualIndex } from '../utils/localStorageUtils';
 
 function HabitosSection() {
@@ -15,16 +17,18 @@ function HabitosSection() {
 
     const [habitosCompletadosSemana, setHabitosCompletadosSemana] = useState(() => {
         const data = cargarDatos('habitosCompletadosSemana', { weekStartDate: '', completions: {} });
-        const currentWeekStart = getStartOfWeek();
+        // <<<<<<< CAMBIO CLAVE AQUÍ >>>>>>>
+        // Formatear getStartOfWeek() a un string YYYY-MM-DD para la comparación
+        const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
 
         console.log('--- Inicializando habitosCompletadosSemana ---');
         console.log('Datos cargados de localStorage:', data);
-        console.log('Inicio de semana actual:', currentWeekStart);
+        console.log('Inicio de semana actual (formateado):', currentWeekStartFormatted);
 
-        // Reinicia si la semana almacenada no es la semana actual
-        if (data.weekStartDate !== currentWeekStart) {
+        // Reinicia si la semana almacenada NO es la semana actual (comparando strings)
+        if (data.weekStartDate !== currentWeekStartFormatted) {
             console.log('¡Nueva semana detectada! Reiniciando hábitos completados.');
-            return { weekStartDate: currentWeekStart, completions: {} };
+            return { weekStartDate: currentWeekStartFormatted, completions: {} };
         }
         console.log('Misma semana. Cargando progreso existente.');
         return data;
@@ -40,24 +44,28 @@ function HabitosSection() {
         console.log('Hábitos completados semanales guardados:', habitosCompletadosSemana);
     }, [habitosCompletadosSemana]);
 
-    // Este useEffect se puede simplificar si la inicialización ya lo maneja bien.
-    // Lo mantendremos por ahora para el control por intervalo.
     useEffect(() => {
         const checkWeekChange = () => {
-            const currentWeekStart = getStartOfWeek();
-            if (habitosCompletadosSemana.weekStartDate !== currentWeekStart) {
-                setHabitosCompletadosSemana({ weekStartDate: currentWeekStart, completions: {} });
-                console.log(`Hábitos reiniciados por intervalo para la nueva semana: ${currentWeekStart}`);
+            // <<<<<<< CAMBIO CLAVE AQUÍ >>>>>>>
+            // Formatear getStartOfWeek() a un string YYYY-MM-DD para la comparación
+            const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
+
+            if (habitosCompletadosSemana.weekStartDate !== currentWeekStartFormatted) {
+                setHabitosCompletadosSemana({ weekStartDate: currentWeekStartFormatted, completions: {} });
+                console.log(`Hábitos reiniciados por intervalo para la nueva semana: ${currentWeekStartFormatted}`);
             }
         };
 
         checkWeekChange(); // Revisa al montar
-        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); // Comprobar cada hora
+        // Comprobar cada hora es una buena frecuencia para esto
+        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); 
 
         return () => clearInterval(intervalId);
-    }, [habitosCompletadosSemana.weekStartDate]); // Dependencia: solo se ejecuta si la fecha de inicio de semana cambia
+    }, [habitosCompletadosSemana.weekStartDate]); 
 
     const diasSemanaNombres = getDiasSemanaNombres();
+    // Console.log para depuración
+    console.log("Nombres de los días de la semana:", diasSemanaNombres);
 
     const handleAddHabito = () => {
         if (nuevoHabitoTexto.trim() === '') {
@@ -79,7 +87,9 @@ function HabitosSection() {
                 newCompletions[habitoId] = {};
             }
             newCompletions[habitoId][diaNombre] = !newCompletions[habitoId][diaNombre];
-            console.log(`Toggle: Hábito ${habitoId}, Día ${diaNombre}. Nuevo estado: ${newCompletions[habitoId][diaNombre]}`);
+            // Console.log para depuración más precisa
+            console.log(`Toggle: Hábito '${habitoId}', Día '${diaNombre}'. Nuevo estado: ${newCompletions[habitoId][diaNombre]}`);
+            console.log("Estado de completados actualizado (temp):", newCompletions);
             return { ...prev, completions: newCompletions };
         });
     };
@@ -99,10 +109,17 @@ function HabitosSection() {
     };
 
     const diaActualNombre = diasSemanaNombres[getDiaActualIndex()];
+    // Console.log para depuración
+    console.log("Día actual (nombre):", diaActualNombre);
+
     const habitosCompletadosHoyCount = habitos.filter(habito =>
         habitosCompletadosSemana.completions[habito.id]?.[diaActualNombre]
     ).length;
     const habitosPendientesHoyCount = habitos.length - habitosCompletadosHoyCount;
+    // Console.log para depuración
+    console.log("Hábitos completados hoy:", habitosCompletadosHoyCount);
+    console.log("Hábitos pendientes hoy:", habitosPendientesHoyCount);
+
 
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
@@ -160,6 +177,8 @@ function HabitosSection() {
                                 <Table.Tr key={habito.id}>
                                     <Table.Td>{habito.text}</Table.Td>
                                     {diasSemanaNombres.map(dia => {
+                                        // Verifica si el hábito está completado para este día
+                                        // Si no existe el habitoId o el dia, es false por defecto
                                         const isCompleted = habitosCompletadosSemana.completions[habito.id]?.[dia] || false;
                                         return (
                                             <Table.Td key={dia} style={{ textAlign: 'center' }}>
