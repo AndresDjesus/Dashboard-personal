@@ -12,6 +12,7 @@ import CitasMotivacionSection from './components/CitasMotivacionSection';
 import TareasPendientesSection from './components/TareasPendientesSection';
 import LogrosSection from './components/LogrosSection';
 import EstadoAnimoSection from './components/EstadoAnimoSection';
+import PerfilSection from './components/PerfilSection';
 
 function App() {
     // Inicializa el estado de datosFinanzas aquí en App.jsx
@@ -39,6 +40,7 @@ function App() {
 
             <AppShell.Main>
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
+                    <PerfilSection />
                     <CitasMotivacionSection />
                      <TareasPendientesSection />
                     <EstudioSection />
