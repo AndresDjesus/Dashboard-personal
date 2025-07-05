@@ -9,6 +9,7 @@ import { IconChartBar } from '@tabler/icons-react';
 import MetasSection from './components/MetasSection';
 import HabitosSection from './components/HabitosSection';
 import CitasMotivacionSection from './components/CitasMotivacionSection';
+import TareasPendientesSection from './components/TareasPendientesSection';
 
 function App() {
     // Inicializa el estado de datosFinanzas aquí en App.jsx
@@ -45,6 +46,7 @@ function App() {
                     <PresupuestoSection datosFinanzas={appDatosFinanzas} />
                     <MetasSection />
                     <HabitosSection />
+                    <TareasPendientesSection />
                 </SimpleGrid>
 
                 <Text ta="center" size="sm" mt="md">
