@@ -10,6 +10,7 @@ import MetasSection from './components/MetasSection';
 import HabitosSection from './components/HabitosSection';
 import CitasMotivacionSection from './components/CitasMotivacionSection';
 import TareasPendientesSection from './components/TareasPendientesSection';
+import LogrosSection from './components/LogrosSection';
 
 function App() {
     // Inicializa el estado de datosFinanzas aquí en App.jsx
@@ -38,6 +39,7 @@ function App() {
             <AppShell.Main>
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
                     <CitasMotivacionSection />
+                     <TareasPendientesSection />
                     <EstudioSection />
                     <EjercicioSection />
                     {/* Pasa datosFinanzas y la función de actualización a FinanzasSection */}
@@ -46,7 +48,8 @@ function App() {
                     <PresupuestoSection datosFinanzas={appDatosFinanzas} />
                     <MetasSection />
                     <HabitosSection />
-                    <TareasPendientesSection />
+                    <LogrosSection />
+                   
                 </SimpleGrid>
 
                 <Text ta="center" size="sm" mt="md">

@@ -1,125 +1,108 @@
-// src/components/HabitosSection.jsx
 import React, { useState, useEffect } from 'react';
 import {
-    Paper,
-    Title,
-    Text,
-    TextInput,
-    Button,
-    Group,
-    ActionIcon,
-    rem,
-    Box,
-    Badge,
-    Table, // ¡Nuevo componente para la tabla!
-    Checkbox, // Usaremos checkboxes dentro de la tabla
+    Paper, Title, Text, TextInput, Button, Group, ActionIcon, rem, Box, Badge, Table, Checkbox,
 } from '@mantine/core';
-import { IconChecklist, IconTrash, IconPlus, IconX } from '@tabler/icons-react'; // Iconos
+import { IconChecklist, IconTrash, IconPlus, IconX } from '@tabler/icons-react';
 
 import { cargarDatos, guardarDatos, getStartOfWeek, getDiasSemanaNombres, getDiaActualIndex } from '../utils/localStorageUtils';
 
 function HabitosSection() {
-    // Estado para la lista de hábitos (solo el nombre del hábito)
-    // Cada hábito: { id: string, text: string }
     const [habitos, setHabitos] = useState(() =>
         cargarDatos('habitosDiarios', [])
     );
 
-    // Estado para el texto del input de nuevo hábito
     const [nuevoHabitoTexto, setNuevoHabitoTexto] = useState('');
 
-    // Estado para el seguimiento semanal de hábitos completados
-    // { weekStartDate: 'YYYY-MM-DD', completions: { [habitoId]: { 'Lun': boolean, 'Mar': boolean, ... } } }
     const [habitosCompletadosSemana, setHabitosCompletadosSemana] = useState(() => {
         const data = cargarDatos('habitosCompletadosSemana', { weekStartDate: '', completions: {} });
         const currentWeekStart = getStartOfWeek();
 
+        console.log('--- Inicializando habitosCompletadosSemana ---');
+        console.log('Datos cargados de localStorage:', data);
+        console.log('Inicio de semana actual:', currentWeekStart);
+
         // Reinicia si la semana almacenada no es la semana actual
         if (data.weekStartDate !== currentWeekStart) {
+            console.log('¡Nueva semana detectada! Reiniciando hábitos completados.');
             return { weekStartDate: currentWeekStart, completions: {} };
         }
+        console.log('Misma semana. Cargando progreso existente.');
         return data;
     });
 
-    // Guarda los hábitos en localStorage cada vez que cambian
     useEffect(() => {
         guardarDatos('habitosDiarios', habitos);
+        console.log('Hábitos guardados (habitosDiarios):', habitos);
     }, [habitos]);
 
-    // Guarda el estado de completado semanal en localStorage
     useEffect(() => {
         guardarDatos('habitosCompletadosSemana', habitosCompletadosSemana);
+        console.log('Hábitos completados semanales guardados:', habitosCompletadosSemana);
     }, [habitosCompletadosSemana]);
 
-    // Efecto para reiniciar los hábitos completados si la semana cambia
+    // Este useEffect se puede simplificar si la inicialización ya lo maneja bien.
+    // Lo mantendremos por ahora para el control por intervalo.
     useEffect(() => {
         const checkWeekChange = () => {
             const currentWeekStart = getStartOfWeek();
             if (habitosCompletadosSemana.weekStartDate !== currentWeekStart) {
-                // Reinicia los hábitos completados para la nueva semana
                 setHabitosCompletadosSemana({ weekStartDate: currentWeekStart, completions: {} });
-                console.log(`Hábitos reiniciados para la nueva semana: ${currentWeekStart}`);
+                console.log(`Hábitos reiniciados por intervalo para la nueva semana: ${currentWeekStart}`);
             }
         };
 
-        // Ejecutar al montar y luego cada cierto tiempo (ej. cada hora)
-        checkWeekChange();
+        checkWeekChange(); // Revisa al montar
         const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); // Comprobar cada hora
 
-        return () => clearInterval(intervalId); // Limpiar el intervalo al desmontar
+        return () => clearInterval(intervalId);
     }, [habitosCompletadosSemana.weekStartDate]); // Dependencia: solo se ejecuta si la fecha de inicio de semana cambia
 
-    // Nombres de los días de la semana para la cabecera de la tabla
     const diasSemanaNombres = getDiasSemanaNombres();
 
-    // Manejador para añadir un nuevo hábito
     const handleAddHabito = () => {
         if (nuevoHabitoTexto.trim() === '') {
             alert('Por favor, ingresa un hábito.');
             return;
         }
         const nuevoHabito = {
-            id: Date.now().toString(), // ID único
+            id: Date.now().toString(),
             text: nuevoHabitoTexto.trim(),
         };
         setHabitos([...habitos, nuevoHabito]);
-        setNuevoHabitoTexto(''); // Limpiar el input
+        setNuevoHabitoTexto('');
     };
 
-    // Manejador para alternar el estado de completado de un hábito para un día específico
     const toggleHabitoCompleted = (habitoId, diaNombre) => {
         setHabitosCompletadosSemana(prev => {
             const newCompletions = { ...prev.completions };
             if (!newCompletions[habitoId]) {
-                newCompletions[habitoId] = {}; // Inicializa si no existe
+                newCompletions[habitoId] = {};
             }
-            newCompletions[habitoId][diaNombre] = !newCompletions[habitoId][diaNombre]; // Alterna el estado
+            newCompletions[habitoId][diaNombre] = !newCompletions[habitoId][diaNombre];
+            console.log(`Toggle: Hábito ${habitoId}, Día ${diaNombre}. Nuevo estado: ${newCompletions[habitoId][diaNombre]}`);
             return { ...prev, completions: newCompletions };
         });
     };
 
-    // Manejador para eliminar un hábito
     const handleDeleteHabito = (id) => {
         if (window.confirm('¿Estás seguro de que quieres eliminar este hábito?')) {
             const updatedHabitos = habitos.filter(habito => habito.id !== id);
             setHabitos(updatedHabitos);
 
-            // También eliminar el estado de completado semanal si existe
             setHabitosCompletadosSemana(prev => {
                 const newCompletions = { ...prev.completions };
                 delete newCompletions[id];
+                console.log(`Hábito ${id} eliminado. Completions restantes:`, newCompletions);
                 return { ...prev, completions: newCompletions };
             });
         }
     };
 
-    // Calcular hábitos completados hoy
     const diaActualNombre = diasSemanaNombres[getDiaActualIndex()];
     const habitosCompletadosHoyCount = habitos.filter(habito =>
         habitosCompletadosSemana.completions[habito.id]?.[diaActualNombre]
     ).length;
     const habitosPendientesHoyCount = habitos.length - habitosCompletadosHoyCount;
-
 
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
@@ -154,7 +137,7 @@ function HabitosSection() {
                     Aún no tienes hábitos. ¡Añade algunos para empezar!
                 </Text>
             ) : (
-                <Box style={{ overflowX: 'auto' }}> {/* Permite scroll horizontal si la tabla es muy ancha */}
+                <Box style={{ overflowX: 'auto' }}>
                     <Table
                         striped
                         highlightOnHover
