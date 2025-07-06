@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Paper, Title, Text, Group, TextInput, Button, Select, ActionIcon,
-    Table, Badge, Flex, Center, rem, Box // Asegúrate de que todas estas están importadas
+    Table, Badge, Flex, Center, rem, Box
 } from '@mantine/core';
 import { IconPigMoney, IconTrash, IconPlus, IconWallet } from '@tabler/icons-react';
 import {
@@ -9,7 +9,14 @@ import {
     BarChart, Bar
 } from 'recharts';
 
-import { cargarDatos, guardarDatos, getDiaActual, getDiasSemanaNombres, getStartOfWeek } from '../utils/localStorageUtils';
+import { 
+    cargarDatos, 
+    guardarDatos, 
+    getDiasSemanaNombres, 
+    getStartOfWeek, 
+    // REMOVIDO: getDiaActualIndex, // <-- Esta función devuelve un número, no una fecha completa
+    getTodayFormattedDate // <-- AÑADIDO: Esta es la función correcta que devuelve 'YYYY-MM-DD'
+} from '../utils/localStorageUtils'; // ¡Asegúrate de que este archivo ya tenga 'getTodayFormattedDate' definido!
 
 function FinanzasSection() {
     const [movimientos, setMovimientos] = useState(() => cargarDatos('finanzasMovimientos', []));
@@ -18,15 +25,11 @@ function FinanzasSection() {
     const [tipo, setTipo] = useState('ingreso'); // 'ingreso' o 'gasto'
     const [categoriaGasto, setCategoriaGasto] = useState(''); // Nuevo estado para la categoría de gasto
 
-    // Necesitamos cargar las categorías de presupuesto para mostrarlas en el Select
     const [categoriasPresupuesto, setCategoriasPresupuesto] = useState([]);
 
-    // Efecto para cargar las categorías de presupuesto cada vez que el componente se renderiza
-    // o cuando el almacenamiento local cambia (si hay un evento 'storage')
     useEffect(() => {
         const loadCategories = () => {
             const presupuestoItems = cargarDatos('presupuestoItems', []);
-            // Mapeamos los ítems de presupuesto a un formato { value: 'categoria', label: 'Categoría' } para el Select
             const options = presupuestoItems.map(item => ({
                 value: item.categoria,
                 label: item.categoria
@@ -34,9 +37,8 @@ function FinanzasSection() {
             setCategoriasPresupuesto(options);
         };
 
-        loadCategories(); // Cargar categorías al montar
+        loadCategories();
 
-        // Opcional: Escuchar cambios de presupuestoItems si se editan categorías en PresupuestoSection
         const handleStorageChange = (event) => {
             if (event.key === 'presupuestoItems' || !event.key) {
                 loadCategories();
@@ -56,7 +58,7 @@ function FinanzasSection() {
             alert('Por favor, ingresa una descripción y un monto válido.');
             return;
         }
-        if (tipo === 'gasto' && !categoriaGasto) { // Si es gasto, la categoría es obligatoria
+        if (tipo === 'gasto' && !categoriaGasto) {
             alert('Por favor, selecciona una categoría para el gasto.');
             return;
         }
@@ -66,18 +68,16 @@ function FinanzasSection() {
             descripcion: descripcion.trim(),
             monto: parseFloat(monto),
             tipo: tipo,
-            fecha: getDiaActual(), // Usa la fecha actual (YYYY-MM-DD)
-            // Añade la categoría del gasto solo si es un gasto
+            fecha: getTodayFormattedDate(), // <-- CORREGIDO: Usar la función correcta
             categoria: tipo === 'gasto' ? categoriaGasto : undefined,
         };
 
         setMovimientos(prevMovimientos => [...prevMovimientos, nuevoMovimiento]);
 
-        // Limpiar campos después de añadir
         setDescripcion('');
         setMonto('');
         setTipo('ingreso');
-        setCategoriaGasto(''); // Limpiar también la categoría de gasto
+        setCategoriaGasto('');
     };
 
     const handleDeleteMovimiento = (id) => {
@@ -128,7 +128,7 @@ function FinanzasSection() {
         <Table.Tr key={movimiento.id}>
             <Table.Td>{movimiento.descripcion}</Table.Td>
             <Table.Td>{movimiento.fecha}</Table.Td>
-            <Table.Td>{movimiento.tipo === 'gasto' && movimiento.categoria ? `(${movimiento.categoria})` : ''}</Table.Td> {/* Muestra la categoría */}
+            <Table.Td>{movimiento.tipo === 'gasto' && movimiento.categoria ? `(${movimiento.categoria})` : ''}</Table.Td>
             <Table.Td style={{ color: movimiento.tipo === 'ingreso' ? 'green' : 'red' }}>
                 {movimiento.tipo === 'gasto' && '-'} ${movimiento.monto.toFixed(2)}
             </Table.Td>
@@ -189,11 +189,10 @@ function FinanzasSection() {
                     value={tipo}
                     onChange={(value) => {
                         setTipo(value);
-                        if (value === 'ingreso') setCategoriaGasto(''); // Limpiar si cambia a ingreso
+                        if (value === 'ingreso') setCategoriaGasto('');
                     }}
                     style={{ flexBasis: '20%' }}
                 />
-                {/* Nuevo campo de selección de categoría para gastos */}
                 {tipo === 'gasto' && (
                     <Select
                         label="Categoría de Gasto"
@@ -201,8 +200,8 @@ function FinanzasSection() {
                         data={categoriasPresupuesto}
                         value={categoriaGasto}
                         onChange={setCategoriaGasto}
-                        searchable // Permite buscar en las categorías
-                        clearable // Permite deseleccionar
+                        searchable
+                        clearable
                         style={{ flexBasis: '25%' }}
                     />
                 )}
@@ -250,7 +249,7 @@ function FinanzasSection() {
                             <Table.Tr>
                                 <Table.Th>Descripción</Table.Th>
                                 <Table.Th>Fecha</Table.Th>
-                                <Table.Th>Categoría</Table.Th> {/* Nueva columna para la categoría */}
+                                <Table.Th>Categoría</Table.Th>
                                 <Table.Th>Monto</Table.Th>
                                 <Table.Th ta="center">Acción</Table.Th>
                             </Table.Tr>

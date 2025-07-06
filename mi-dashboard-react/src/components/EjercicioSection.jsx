@@ -4,7 +4,7 @@ import { NumberInput, Button, Box, Paper, Title, Group, Text } from '@mantine/co
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 // Importamos getWeekNumber desde localStorageUtils ahora
-import { cargarDatos, guardarDatos, getDiaActual, getWeekNumber } from '../utils/localStorageUtils'; 
+import { cargarDatos, guardarDatos, getWeekNumber, getDiaActualIndex } from '../utils/localStorageUtils'; 
 import { IconBarbell } from '@tabler/icons-react'; 
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTitle, Tooltip, Legend);
@@ -38,7 +38,7 @@ function EjercicioSection() {
     const [inputHoras, setInputHoras] = useState(0);
 
     useEffect(() => {
-        const diaActual = getDiaActual(); // `getDiaActual` ahora devuelve YYYY-MM-DD
+        const diaActual = getDiaActualIndex(); // `getDiaActual` ahora devuelve YYYY-MM-DD
         const currentDayIndex = new Date().getDay(); // Obtiene el índice 0-6 (Domingo-Sábado)
         setInputHoras(horasEjercicio[currentDayIndex] || 0); // Usa el índice para el array
     }, [horasEjercicio]);

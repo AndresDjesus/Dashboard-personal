@@ -3,124 +3,153 @@ import React, { useState, useEffect } from 'react';
 import {
     Paper, Title, Text, TextInput, Button, Group, ActionIcon, rem, Box, Badge, Table, Checkbox,
 } from '@mantine/core';
-import { IconChecklist, IconTrash } from '@tabler/icons-react'; // remueve IconPlus, IconX si no se usan
+import { IconChecklist, IconTrash } from '@tabler/icons-react';
 
-// Asegúrate de que estas utilidades sean las últimas versiones corregidas
-import { cargarDatos, guardarDatos, getStartOfWeek, getDiasSemanaNombres, getDiaActualIndex } from '../utils/localStorageUtils';
+// Importa las utilidades de localStorage actualizadas
+import { 
+    cargarDatos, 
+    guardarDatos, 
+    getStartOfWeek, 
+    getDiasSemanaNombres, 
+    getDiaActualIndex 
+} from '../utils/localStorageUtils';
 
 function HabitosSection() {
-    const [habitos, setHabitos] = useState(() =>
-        cargarDatos('habitosDiarios', [])
-    );
-
-    const [nuevoHabitoTexto, setNuevoHabitoTexto] = useState('');
-
-    const [habitosCompletadosSemana, setHabitosCompletadosSemana] = useState(() => {
-        const data = cargarDatos('habitosCompletadosSemana', { weekStartDate: '', completions: {} });
-        // <<<<<<< CAMBIO CLAVE AQUÍ >>>>>>>
-        // Formatear getStartOfWeek() a un string YYYY-MM-DD para la comparación
-        const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
-
-        console.log('--- Inicializando habitosCompletadosSemana ---');
-        console.log('Datos cargados de localStorage:', data);
-        console.log('Inicio de semana actual (formateado):', currentWeekStartFormatted);
-
-        // Reinicia si la semana almacenada NO es la semana actual (comparando strings)
-        if (data.weekStartDate !== currentWeekStartFormatted) {
-            console.log('¡Nueva semana detectada! Reiniciando hábitos completados.');
-            return { weekStartDate: currentWeekStartFormatted, completions: {} };
-        }
-        console.log('Misma semana. Cargando progreso existente.');
-        return data;
+    // -----------------------------------------------------------
+    // 1. Estado para la lista de hábitos (persistente)
+    //    habitos: [{ id: '...', text: '...' }, ...]
+    // -----------------------------------------------------------
+    const [habitos, setHabitos] = useState(() => {
+        return cargarDatos('habitosLista', []); // Nueva clave para evitar conflictos
     });
 
-    useEffect(() => {
-        guardarDatos('habitosDiarios', habitos);
-        console.log('Hábitos guardados (habitosDiarios):', habitos);
-    }, [habitos]);
+    // -----------------------------------------------------------
+    // 2. Estado para el texto del nuevo hábito
+    // -----------------------------------------------------------
+    const [nuevoHabitoTexto, setNuevoHabitoTexto] = useState('');
 
-    useEffect(() => {
-        guardarDatos('habitosCompletadosSemana', habitosCompletadosSemana);
-        console.log('Hábitos completados semanales guardados:', habitosCompletadosSemana);
-    }, [habitosCompletadosSemana]);
+    // -----------------------------------------------------------
+    // 3. Estado para el seguimiento de hábitos completados (persistente y reinicio semanal)
+    //    habitosCompletados: { weekStartDate: 'YYYY-MM-DD', completions: { 'habitoId': { 'Lun': true, 'Mar': false, ... } } }
+    // -----------------------------------------------------------
+    const [habitosCompletados, setHabitosCompletados] = useState(() => {
+        const datosCargados = cargarDatos('habitosCompletadosSemana', { weekStartDate: '', completions: {} });
+        const startOfCurrentWeek = getStartOfWeek().toISOString().split('T')[0]; // Formato YYYY-MM-DD
 
+        // Reiniciar si la semana almacenada no coincide con la actual
+        if (datosCargados.weekStartDate !== startOfCurrentWeek) {
+            console.log("Nueva semana detectada para hábitos, reiniciando progreso.");
+            return { weekStartDate: startOfCurrentWeek, completions: {} };
+        }
+        return datosCargados; // Si es la misma semana, cargar los datos existentes
+    });
+
+    // -----------------------------------------------------------
+    // 4. Efecto para guardar la lista de hábitos en localStorage
+    // -----------------------------------------------------------
+    useEffect(() => {
+        guardarDatos('habitosLista', habitos);
+        console.log("Lista de hábitos guardada:", habitos);
+    }, [habitos]); // Se ejecuta cada vez que la lista de hábitos cambia
+
+    // -----------------------------------------------------------
+    // 5. Efecto para guardar el estado de completado de hábitos en localStorage
+    // -----------------------------------------------------------
+    useEffect(() => {
+        guardarDatos('habitosCompletadosSemana', habitosCompletados);
+        console.log("Estado de hábitos completados guardado:", habitosCompletados);
+    }, [habitosCompletados]); // Se ejecuta cada vez que el estado de completado cambia
+
+    // -----------------------------------------------------------
+    // 6. Efecto para verificar y reiniciar semanalmente (corre cada hora)
+    // -----------------------------------------------------------
     useEffect(() => {
         const checkWeekChange = () => {
-            // <<<<<<< CAMBIO CLAVE AQUÍ >>>>>>>
-            // Formatear getStartOfWeek() a un string YYYY-MM-DD para la comparación
-            const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
-
-            if (habitosCompletadosSemana.weekStartDate !== currentWeekStartFormatted) {
-                setHabitosCompletadosSemana({ weekStartDate: currentWeekStartFormatted, completions: {} });
-                console.log(`Hábitos reiniciados por intervalo para la nueva semana: ${currentWeekStartFormatted}`);
-            }
+            const startOfCurrentWeek = getStartOfWeek().toISOString().split('T')[0];
+            
+            setHabitosCompletados(prev => {
+                // Si la semana actual es diferente a la semana almacenada, reiniciar
+                if (prev.weekStartDate !== startOfCurrentWeek) {
+                    console.log(`Reinicio de hábitos programado: ${startOfCurrentWeek}`);
+                    return { weekStartDate: startOfCurrentWeek, completions: {} };
+                }
+                return prev; // Si es la misma semana, no hacer nada
+            });
         };
 
-        checkWeekChange(); // Revisa al montar
-        // Comprobar cada hora es una buena frecuencia para esto
-        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); 
+        checkWeekChange(); // Ejecutar al montar para asegurar que el estado sea el correcto
+        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); // Revisa cada hora
 
-        return () => clearInterval(intervalId);
-    }, [habitosCompletadosSemana.weekStartDate]); 
+        return () => clearInterval(intervalId); // Limpiar el intervalo al desmontar
+    }, []); // Dependencia vacía: se ejecuta solo una vez al montar
 
-    const diasSemanaNombres = getDiasSemanaNombres();
-    // Console.log para depuración
-    console.log("Nombres de los días de la semana:", diasSemanaNombres);
+    // -----------------------------------------------------------
+    // 7. Utilidades de días de la semana
+    // -----------------------------------------------------------
+    const diasSemanaNombres = getDiasSemanaNombres(); // ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    const diaActualNombre = diasSemanaNombres[getDiaActualIndex()]; // Nombre del día actual, ej. 'Lun'
+
+    // -----------------------------------------------------------
+    // 8. Handlers de Eventos
+    // -----------------------------------------------------------
 
     const handleAddHabito = () => {
         if (nuevoHabitoTexto.trim() === '') {
-            alert('Por favor, ingresa un hábito.');
+            alert('El hábito no puede estar vacío.');
             return;
         }
+        // Crear un nuevo objeto de hábito
         const nuevoHabito = {
-            id: Date.now().toString(),
+            id: Date.now().toString(), // ID único basado en el timestamp
             text: nuevoHabitoTexto.trim(),
         };
-        setHabitos([...habitos, nuevoHabito]);
-        setNuevoHabitoTexto('');
+        setHabitos([...habitos, nuevoHabito]); // Añadir el nuevo hábito a la lista
+        setNuevoHabitoTexto(''); // Limpiar el input
     };
 
-    const toggleHabitoCompleted = (habitoId, diaNombre) => {
-        setHabitosCompletadosSemana(prev => {
-            const newCompletions = { ...prev.completions };
-            if (!newCompletions[habitoId]) {
-                newCompletions[habitoId] = {};
-            }
-            newCompletions[habitoId][diaNombre] = !newCompletions[habitoId][diaNombre];
-            // Console.log para depuración más precisa
-            console.log(`Toggle: Hábito '${habitoId}', Día '${diaNombre}'. Nuevo estado: ${newCompletions[habitoId][diaNombre]}`);
-            console.log("Estado de completados actualizado (temp):", newCompletions);
-            return { ...prev, completions: newCompletions };
-        });
-    };
-
-    const handleDeleteHabito = (id) => {
+    const handleDeleteHabito = (idAEliminar) => {
         if (window.confirm('¿Estás seguro de que quieres eliminar este hábito?')) {
-            const updatedHabitos = habitos.filter(habito => habito.id !== id);
-            setHabitos(updatedHabitos);
+            // Eliminar de la lista de hábitos
+            setHabitos(prevHabitos => prevHabitos.filter(habito => habito.id !== idAEliminar));
 
-            setHabitosCompletadosSemana(prev => {
-                const newCompletions = { ...prev.completions };
-                delete newCompletions[id];
-                console.log(`Hábito ${id} eliminado. Completions restantes:`, newCompletions);
+            // Eliminar también su progreso de completado
+            setHabitosCompletados(prev => {
+                const newCompletions = JSON.parse(JSON.stringify(prev.completions)); // Copia profunda
+                delete newCompletions[idAEliminar]; // Eliminar la entrada del hábito
                 return { ...prev, completions: newCompletions };
             });
         }
     };
 
-    const diaActualNombre = diasSemanaNombres[getDiaActualIndex()];
-    // Console.log para depuración
-    console.log("Día actual (nombre):", diaActualNombre);
+    const toggleHabitoCompleted = (habitoId, diaNombre) => {
+        setHabitosCompletados(prev => {
+            // Clonar profundamente para asegurar inmutabilidad y que React detecte el cambio
+            const newCompletions = JSON.parse(JSON.stringify(prev.completions));
+            
+            // Asegurarse de que el objeto del hábito exista
+            if (!newCompletions[habitoId]) {
+                newCompletions[habitoId] = {};
+            }
+            // Invertir el estado de completado para el día específico
+            newCompletions[habitoId][diaNombre] = !newCompletions[habitoId][diaNombre];
+            
+            console.log(`Toggle Hábito: ${habitoId}, Día: ${diaNombre}. Nuevo estado: ${newCompletions[habitoId][diaNombre]}`);
+            
+            return { ...prev, completions: newCompletions };
+        });
+    };
 
+    // -----------------------------------------------------------
+    // 9. Cálculos para las insignias de progreso
+    // -----------------------------------------------------------
     const habitosCompletadosHoyCount = habitos.filter(habito =>
-        habitosCompletadosSemana.completions[habito.id]?.[diaActualNombre]
+        habitosCompletados.completions[habito.id]?.[diaActualNombre]
     ).length;
     const habitosPendientesHoyCount = habitos.length - habitosCompletadosHoyCount;
-    // Console.log para depuración
-    console.log("Hábitos completados hoy:", habitosCompletadosHoyCount);
-    console.log("Hábitos pendientes hoy:", habitosPendientesHoyCount);
 
-
+    // -----------------------------------------------------------
+    // 10. Renderizado del Componente
+    // -----------------------------------------------------------
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -134,6 +163,11 @@ function HabitosSection() {
                     placeholder="Ej. Beber 2L de agua"
                     value={nuevoHabitoTexto}
                     onChange={(event) => setNuevoHabitoTexto(event.currentTarget.value)}
+                    onKeyPress={(event) => {
+                        if (event.key === 'Enter') {
+                            handleAddHabito();
+                        }
+                    }}
                 />
                 <Button onClick={handleAddHabito} variant="filled" color="teal">
                     Añadir Hábito
@@ -156,6 +190,9 @@ function HabitosSection() {
             ) : (
                 <Box style={{ overflowX: 'auto' }}>
                     <Table
+                        // La key fuerza la re-renderización completa de la tabla cuando los datos cambian
+                        // Esto es crucial para que las checkboxes reflejen el estado correctamente
+                        key={`${JSON.stringify(habitos)}-${JSON.stringify(habitosCompletados)}`}
                         striped
                         highlightOnHover
                         withTableBorder
@@ -177,9 +214,8 @@ function HabitosSection() {
                                 <Table.Tr key={habito.id}>
                                     <Table.Td>{habito.text}</Table.Td>
                                     {diasSemanaNombres.map(dia => {
-                                        // Verifica si el hábito está completado para este día
-                                        // Si no existe el habitoId o el dia, es false por defecto
-                                        const isCompleted = habitosCompletadosSemana.completions[habito.id]?.[dia] || false;
+                                        // Determinar si la casilla de verificación debe estar marcada
+                                        const isCompleted = habitosCompletados.completions[habito.id]?.[dia] || false;
                                         return (
                                             <Table.Td key={dia} style={{ textAlign: 'center' }}>
                                                 <Checkbox
@@ -208,6 +244,9 @@ function HabitosSection() {
                     </Table>
                 </Box>
             )}
+             <Text size="sm" c="dimmed" mt="xs" ta="center">
+                *El progreso de los hábitos se reinicia automáticamente cada inicio de semana (lunes).
+            </Text>
         </Paper>
     );
 }

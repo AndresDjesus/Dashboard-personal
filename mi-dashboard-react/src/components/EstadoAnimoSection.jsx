@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Title, Text, Group, Rating, Button, Center, Box, useMantineTheme, rem } from '@mantine/core';
 import { IconChartLine } from '@tabler/icons-react';
-import { cargarDatos, guardarDatos, getDiaActual, getStartOfWeek, getDiasSemanaNombres } from '../utils/localStorageUtils';
+import {
+    cargarDatos,
+    guardarDatos,
+    // REMOVIDO: getDiaActualIndex, // <-- Esta función devuelve un número (0-6), no la fecha YYYY-MM-DD
+    getTodayFormattedDate, // <-- AÑADIDO: Esta es la función correcta para la fecha actual
+    getStartOfWeek,
+    getDiasSemanaNombres
+} from '../utils/localStorageUtils'; // ¡Asegúrate de que este archivo ya tenga 'getTodayFormattedDate' definido!
 
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { Line } from 'react-chartjs-2';
@@ -15,7 +22,7 @@ const moodEmojis = [
     '😔', // 2: Mal
     '😐', // 3: Neutral
     '😊', // 4: Bien
-    '😄'  // 5: Excelente
+    '😄'  // 5: Excelente
 ];
 
 function EstadoAnimoSection() {
@@ -24,7 +31,7 @@ function EstadoAnimoSection() {
     const [estadoAnimoSemana, setEstadoAnimoSemana] = useState(() => {
         const data = cargarDatos('estadoAnimoSemana', { weekStartDate: '', dailyMoods: {} });
         // Aseguramos que currentWeekStartFormatted siempre sea un string 'YYYY-MM-DD'
-        const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0]; 
+        const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
 
         console.log('--- Inicializando estadoAnimoSemana ---');
         console.log('Datos cargados de localStorage:', data);
@@ -39,8 +46,9 @@ function EstadoAnimoSection() {
         return data;
     });
 
-    const diaActual = getDiaActual(); // Obtiene la fecha actual en YYYY-MM-DD
-    const [rating, setRating] = useState(estadoAnimoSemana.dailyMoods[diaActual] || 0);
+    // CORREGIDO: Ahora usa getTodayFormattedDate para obtener la fecha del día actual
+    const diaActualFormatted = getTodayFormattedDate(); // Obtiene la fecha actual en YYYY-MM-DD
+    const [rating, setRating] = useState(estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0);
 
     const chartRef = useRef(null);
 
@@ -52,9 +60,9 @@ function EstadoAnimoSection() {
 
     // Efecto para actualizar el rating actual si el día cambia o se carga el componente
     useEffect(() => {
-        setRating(estadoAnimoSemana.dailyMoods[diaActual] || 0);
-        console.log("Rating para el día actual ('" + diaActual + "') desde estado:", estadoAnimoSemana.dailyMoods[diaActual] || 0);
-    }, [diaActual, estadoAnimoSemana.dailyMoods]);
+        setRating(estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0); // Usa la fecha formateada
+        console.log("Rating para el día actual ('" + diaActualFormatted + "') desde estado:", estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0);
+    }, [diaActualFormatted, estadoAnimoSemana.dailyMoods]);
 
 
     // Efecto para reiniciar los estados de ánimo si la semana cambia
@@ -68,7 +76,8 @@ function EstadoAnimoSection() {
         };
 
         checkWeekChange();
-        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); // Comprobar cada hora
+        // Comprobar cada hora (60 minutos * 60 segundos * 1000 milisegundos)
+        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); 
 
         return () => clearInterval(intervalId);
     }, [estadoAnimoSemana.weekStartDate]);
@@ -81,8 +90,9 @@ function EstadoAnimoSection() {
         }
         setEstadoAnimoSemana(prev => {
             const newDailyMoods = { ...prev.dailyMoods };
-            newDailyMoods[diaActual] = rating;
-            console.log(`Guardando ánimo para el día ${diaActual}: ${rating}`);
+            // CORREGIDO: Usar la fecha formateada como clave
+            newDailyMoods[diaActualFormatted] = rating; 
+            console.log(`Guardando ánimo para el día ${diaActualFormatted}: ${rating}`);
             return { ...prev, dailyMoods: newDailyMoods };
         });
         alert('¡Estado de ánimo registrado!');
@@ -112,7 +122,8 @@ function EstadoAnimoSection() {
                 label: 'Estado de Ánimo',
                 // Data: mapea las fechas generadas a los datos guardados
                 data: fechasSemana.map(date => {
-                    const value = estadoAnimoSemana.dailyMoods[date] || 0;
+                    // CORREGIDO: Buscar el estado de ánimo usando la clave YYYY-MM-DD
+                    const value = estadoAnimoSemana.dailyMoods[date] || 0; 
                     console.log(`Buscando ánimo para ${date}: ${value}`);
                     return value;
                 }),
@@ -167,7 +178,7 @@ function EstadoAnimoSection() {
                         return moodLabels[value] || '';
                     },
                     font: {
-                        size: 16 // Aumentar el tamaño para que los emojis se vean bien
+                        size: 16
                     }
                 },
                 grid: {
@@ -196,15 +207,11 @@ function EstadoAnimoSection() {
 
             <Center mb="md">
                 <Text size="lg" fw={500} mr="sm">¿Cómo te sientes hoy?</Text>
-                {/* Renderiza el Rating con emojis personalizados */}
                 <Rating
                     value={rating}
                     onChange={setRating}
                     count={5}
-                    // Usa la prop renderStar para mostrar emojis en lugar de estrellas
                     renderStar={(state) => {
-                        // state.value es el valor de la estrella (1, 2, 3, 4, 5)
-                        // moodEmojis es un array de base 0, por eso restamos 1
                         return moodEmojis[state.value - 1];
                     }}
                 />
