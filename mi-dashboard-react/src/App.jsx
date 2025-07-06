@@ -13,6 +13,8 @@ import HabitosSection from './components/HabitosSection';
 import LogrosSection from './components/LogrosSection';
 import EstadoAnimoSection from './components/EstadoAnimoSection';
 import PerfilSection from './components/PerfilSection'; 
+import EjercicioSection from './components/EjercicioSection';
+import EstudioSection from './components/EstudioSection';
 
 // Importa iconos de Tabler
 import { 
@@ -23,6 +25,8 @@ import {
   IconChecklist, 
   IconMoodHappy, 
   IconAward,
+  IconBook2,
+  IconWeight,
   IconChartBar // Para el resumen, si lo añadimos después
 } from '@tabler/icons-react';
 
@@ -40,6 +44,8 @@ function App() {
     { id: 'metas', label: 'Mis Metas', component: <MetasSection />, icon: <IconTarget size={18} /> }, // Puedes cambiar el icono si quieres
     { id: 'habitos', label: 'Mis Hábitos', component: <HabitosSection />, icon: <IconChecklist size={18} /> },
     { id: 'logros', label: 'Mis Logros', component: <LogrosSection />, icon: <IconAward size={18} /> },
+     { id: 'estudio', label: 'Horas de Estudio', component: <EstudioSection />, icon: <IconBook2 size={18} /> },
+    { id: 'entrenamiento', label: 'Horas de Entrenamiento', component: <EjercicioSection />, icon: <IconWeight size={18} /> },
     // { id: 'resumen', label: 'Resumen', component: <ResumenSection />, icon: <IconChartBar size={18} /> }, // Si añadimos una sección de resumen
   ];
 
