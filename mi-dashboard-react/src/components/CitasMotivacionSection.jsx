@@ -4,7 +4,7 @@ import { Paper, Title, Text, Box } from '@mantine/core';
 import { IconBulb } from '@tabler/icons-react'; 
 
 // Importamos getDiaActual, cargarDatos y guardarDatos
-import { getDiaActual, cargarDatos, guardarDatos } from '../utils/localStorageUtils';
+import { cargarDatos, guardarDatos, getDiaActualIndex } from '../utils/localStorageUtils';
 
 function CitasMotivacionSection() {
     const citas = [
@@ -23,7 +23,7 @@ function CitasMotivacionSection() {
     const [citaActual, setCitaActual] = useState({});
 
     useEffect(() => {
-        const hoy = getDiaActual();
+        const hoy = getDiaActualIndex();
         const storedQuoteData = cargarDatos('citaDelDia', { date: '', index: -1 });
 
         // Si es un nuevo día o no hay cita almacenada para hoy
