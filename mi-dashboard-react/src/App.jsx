@@ -27,6 +27,7 @@ import PerfilSection from './components/PerfilSection';
 import EjercicioSection from './components/EjercicioSection';
 import EstudioSection from './components/EstudioSection';
 import CitasMotivacionSection from './components/CitasMotivacionSection'; 
+import TareasPendientesSection from './components/TareasPendientesSection';
 
 // Importa iconos de Tabler
 import { 
@@ -57,6 +58,7 @@ function App() {
         { id: 'logros', label: 'Mis Logros', component: <LogrosSection />, icon: <IconAward size={18} /> },
         { id: 'estudio', label: 'Horas de Estudio', component: <EstudioSection />, icon: <IconBook2 size={18} /> },
         { id: 'entrenamiento', label: 'Horas de Entrenamiento', component: <EjercicioSection />, icon: <IconWeight size={18} /> },
+        { id: 'tareasPendientes', label: 'Tareas Pendientes', component: <TareasPendientesSection />, icon: <IconChecklist size={18} /> },
     ];
 
     const renderActiveSection = () => {

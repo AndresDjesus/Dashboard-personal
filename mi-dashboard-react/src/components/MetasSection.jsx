@@ -1,8 +1,15 @@
+// src/components/MetasSection.jsx
 import React, { useState, useEffect } from 'react';
-import {Paper,Title,Text,TextInput,Button,Group,List,Checkbox,ActionIcon,rem,Box,Badge,NumberInput,Progress } from '@mantine/core';
-import { IconTarget, IconCheck, IconTrash, IconEdit, IconX, IconPlus, IconMinus } from '@tabler/icons-react'; // Nuevos íconos
+import { 
+    Paper, Title, Text, TextInput, Button, Group, List, Checkbox, ActionIcon, rem, Box, Badge, NumberInput, Progress, Select 
+} from '@mantine/core';
+import { 
+    IconTarget, IconCheck, IconTrash, IconEdit, IconX, IconPlus, IconMinus, IconFilter 
+} from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications'; // Importar notificaciones
+import { modals } from '@mantine/modals';           // Importar modales
 
-import { cargarDatos, guardarDatos } from '../utils/localStorageUtils';
+import { cargarDatos, guardarDatos } from '../utils/localStorageUtils'; // Asegúrate de que estas funciones existan
 
 function MetasSection() {
     // Estado para la lista de metas
@@ -11,138 +18,190 @@ function MetasSection() {
         cargarDatos('metasPersonales', [])
     );
 
-    const [nuevaMetaTexto, setNuevaMetaTexto] = useState('');
-    // Estados para la nueva meta basada en pasos
-    const [nuevaMetaTotalPasos, setNuevaMetaTotalPasos] = useState(0);
-    const [nuevaMetaCurrentPasos, setNuevaMetaCurrentPasos] = useState(0);
+    // Estados para el formulario de añadir/editar
+    const [metaInputTexto, setMetaInputTexto] = useState(''); // Usado para añadir o editar el texto
+    const [metaInputTotalPasos, setMetaInputTotalPasos] = useState(0);
+    const [metaInputCurrentPasos, setMetaInputCurrentPasos] = useState(0);
+    const [editandoMetaId, setEditandoMetaId] = useState(null); // ID de la meta que se está editando
 
-    const [editandoMetaId, setEditandoMetaId] = useState(null);
-    const [editandoMetaTexto, setEditandoMetaTexto] = useState('');
-    // Estados para la edición de metas basadas en pasos
-    const [editandoMetaTotalPasos, setEditandoMetaTotalPasos] = useState(0);
-    const [editandoMetaCurrentPasos, setEditandoMetaCurrentPasos] = useState(0);
+    // Estado para el filtro de metas
+    const [filtroEstado, setFiltroEstado] = useState('todas'); // 'todas', 'pendientes', 'completadas'
 
     // Guarda las metas en localStorage cada vez que cambian
     useEffect(() => {
         guardarDatos('metasPersonales', metas);
     }, [metas]);
 
+    // Limpia los campos del formulario
+    const resetForm = () => {
+        setMetaInputTexto('');
+        setMetaInputTotalPasos(0);
+        setMetaInputCurrentPasos(0);
+        setEditandoMetaId(null);
+    };
+
     // Manejador para añadir o actualizar una meta
     const handleAddOrUpdateMeta = () => {
-        if (nuevaMetaTexto.trim() === '' && !editandoMetaId) {
-            alert('Por favor, ingresa una meta.');
+        if (metaInputTexto.trim() === '') {
+            notifications.show({
+                title: 'Error',
+                message: 'La descripción de la meta no puede estar vacía.',
+                color: 'red',
+            });
             return;
         }
         
-        const isProgressMeta = nuevaMetaTotalPasos > 0 || editandoMetaTotalPasos > 0;
+        const isProgressMeta = metaInputTotalPasos > 0;
 
         if (editandoMetaId) {
             // Actualizar meta existente
             const updatedMetas = metas.map(meta => {
                 if (meta.id === editandoMetaId) {
-                    const updatedMeta = { ...meta, text: editandoMetaTexto };
+                    const updatedMeta = { ...meta, text: metaInputTexto.trim() };
                     if (isProgressMeta) {
-                        updatedMeta.totalSteps = editandoMetaTotalPasos;
-                        updatedMeta.currentSteps = Math.min(editandoMetaCurrentPasos, editandoMetaTotalPasos); // No exceder total
-                        // Marcar como completada si los pasos actuales alcanzan el total
+                        updatedMeta.totalSteps = metaInputTotalPasos;
+                        // Asegurarse de que currentSteps no exceda totalSteps
+                        updatedMeta.currentSteps = Math.min(metaInputCurrentPasos, metaInputTotalPasos);
                         updatedMeta.completed = updatedMeta.currentSteps >= updatedMeta.totalSteps;
                     } else {
                         // Si era una meta con pasos y la editamos sin pasos, quitamos los campos
                         delete updatedMeta.totalSteps;
                         delete updatedMeta.currentSteps;
+                        updatedMeta.completed = false; // Una meta simple no puede estar completada por pasos si los quitamos
                     }
                     return updatedMeta;
                 }
                 return meta;
             });
             setMetas(updatedMetas);
-            cancelEditMeta(); // Limpiar el estado de edición
+            notifications.show({
+                title: 'Meta Actualizada',
+                message: 'La meta ha sido modificada con éxito.',
+                color: 'blue',
+            });
         } else {
             // Añadir nueva meta
             const nuevaMeta = {
                 id: Date.now().toString(),
-                text: nuevaMetaTexto.trim(),
+                text: metaInputTexto.trim(),
                 completed: false,
             };
-            if (nuevaMetaTotalPasos > 0) {
-                nuevaMeta.totalSteps = nuevaMetaTotalPasos;
-                nuevaMeta.currentSteps = nuevaMetaCurrentPasos;
-                if (nuevaMeta.currentSteps >= nuevaMeta.totalSteps && nuevaMeta.totalSteps > 0) {
-                    nuevaMeta.completed = true; // Si ya inicia completada por pasos
+            if (isProgressMeta) {
+                nuevaMeta.totalSteps = metaInputTotalPasos;
+                nuevaMeta.currentSteps = Math.min(metaInputCurrentPasos, metaInputTotalPasos);
+                if (nuevaMeta.currentSteps >= nuevaMeta.totalSteps) {
+                    nuevaMeta.completed = true;
                 }
             }
             setMetas([...metas, nuevaMeta]);
-            // Limpiar inputs después de añadir
-            setNuevaMetaTexto('');
-            setNuevaMetaTotalPasos(0);
-            setNuevaMetaCurrentPasos(0);
+            notifications.show({
+                title: 'Meta Añadida',
+                message: 'Nueva meta registrada. ¡A por ella!',
+                color: 'green',
+            });
         }
+        resetForm(); // Limpiar el formulario
     };
 
-    // Manejador para alternar el estado de completado de una meta simple
+    // Manejador para alternar el estado de completado de una meta simple (sin pasos)
     const toggleMetaCompleted = (id) => {
-        const updatedMetas = metas.map(meta =>
-            meta.id === id && typeof meta.totalSteps === 'undefined' // Solo para metas sin pasos
-                ? { ...meta, completed: !meta.completed }
-                : meta
-        );
-        setMetas(updatedMetas);
+        setMetas(prevMetas => prevMetas.map(meta => {
+            if (meta.id === id && typeof meta.totalSteps === 'undefined') { // Solo para metas sin progreso
+                notifications.show({
+                    title: meta.completed ? 'Meta Desmarcada' : '¡Meta Completada!',
+                    message: meta.completed ? 'Has desmarcado la meta.' : '¡Felicidades por completar tu meta!',
+                    color: meta.completed ? 'orange' : 'teal',
+                });
+                return { ...meta, completed: !meta.completed };
+            }
+            return meta;
+        }));
     };
 
-    // Incrementa/decrementa los pasos de una meta
+    // Incrementa/decrementa los pasos de una meta con progreso
     const updateMetaSteps = (id, change) => {
-        const updatedMetas = metas.map(meta => {
+        setMetas(prevMetas => prevMetas.map(meta => {
             if (meta.id === id && typeof meta.totalSteps !== 'undefined') {
                 const newSteps = Math.max(0, Math.min(meta.totalSteps, meta.currentSteps + change));
+                const newCompleted = newSteps >= meta.totalSteps && meta.totalSteps > 0;
+
+                if (!meta.completed && newCompleted) {
+                    notifications.show({
+                        title: '¡Meta Completada por Pasos!',
+                        message: `Has alcanzado todos los pasos para "${meta.text}". ¡Bien hecho!`,
+                        color: 'teal',
+                    });
+                } else if (meta.completed && !newCompleted) {
+                    notifications.show({
+                        title: 'Progreso Ajustado',
+                        message: `Has ajustado los pasos de "${meta.text}".`,
+                        color: 'orange',
+                    });
+                }
                 return {
                     ...meta,
                     currentSteps: newSteps,
-                    completed: newSteps >= meta.totalSteps && meta.totalSteps > 0, // Marcar como completada si los pasos son iguales al total y el total es > 0
+                    completed: newCompleted,
                 };
             }
             return meta;
-        });
-        setMetas(updatedMetas);
+        }));
     };
 
     // Manejador para eliminar una meta
     const handleDeleteMeta = (id) => {
-        if (window.confirm('¿Estás seguro de que quieres eliminar esta meta?')) {
-            const updatedMetas = metas.filter(meta => meta.id !== id);
-            setMetas(updatedMetas);
-            cancelEditMeta(); // Limpiar el estado de edición si eliminamos la que se estaba editando
-        }
+        modals.openConfirmModal({
+            title: 'Confirmar Eliminación',
+            children: (
+                <Text size="sm">
+                    ¿Estás seguro de que quieres eliminar esta meta? Esta acción no se puede deshacer.
+                </Text>
+            ),
+            labels: { confirm: 'Sí, eliminar', cancel: 'No, cancelar' },
+            confirmProps: { color: 'red' },
+            onCancel: () => notifications.show({
+                title: 'Eliminación Cancelada',
+                message: 'La eliminación de la meta fue cancelada.',
+                color: 'gray',
+            }),
+            onConfirm: () => {
+                setMetas(prevMetas => prevMetas.filter(meta => meta.id !== id));
+                resetForm(); // Limpiar el estado de edición si eliminamos la que se estaba editando
+                notifications.show({
+                    title: 'Meta Eliminada',
+                    message: 'La meta ha sido borrada con éxito.',
+                    color: 'blue',
+                });
+            },
+        });
     };
 
     // Manejador para iniciar la edición de una meta
     const startEditMeta = (meta) => {
         setEditandoMetaId(meta.id);
-        setEditandoMetaTexto(meta.text);
-        setEditandoMetaTotalPasos(meta.totalSteps || 0); // Si no tiene, es 0
-        setEditandoMetaCurrentPasos(meta.currentSteps || 0); // Si no tiene, es 0
-        setNuevaMetaTexto(''); // Limpiar input principal
-        setNuevaMetaTotalPasos(0);
-        setNuevaMetaCurrentPasos(0);
+        setMetaInputTexto(meta.text);
+        setMetaInputTotalPasos(meta.totalSteps || 0);
+        setMetaInputCurrentPasos(meta.currentSteps || 0);
     };
 
-    // Manejador para cancelar la edición
-    const cancelEditMeta = () => {
-        setEditandoMetaId(null);
-        setEditandoMetaTexto('');
-        setEditandoMetaTotalPasos(0);
-        setEditandoMetaCurrentPasos(0);
-        setNuevaMetaTexto('');
-        setNuevaMetaTotalPasos(0);
-        setNuevaMetaCurrentPasos(0);
-    };
+    // Filtrar metas según el estado seleccionado
+    const metasFiltradas = metas.filter(meta => {
+        if (filtroEstado === 'pendientes') {
+            return !meta.completed;
+        }
+        if (filtroEstado === 'completadas') {
+            return meta.completed;
+        }
+        return true; // 'todas'
+    });
 
-    const metasCompletadas = metas.filter(meta => meta.completed).length;
-    const metasPendientes = metas.filter(meta => !meta.completed).length;
+    const metasCompletadasCount = metas.filter(meta => meta.completed).length;
+    const metasPendientesCount = metas.filter(meta => !meta.completed).length;
 
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <IconTarget size={28} /> {/* O IconFlag, IconAward */}
+                <IconTarget size={28} />
                 Mis Metas Personales
             </Title>
 
@@ -150,17 +209,24 @@ function MetasSection() {
                 <TextInput
                     label={editandoMetaId ? "Editando Meta:" : "Nueva Meta:"}
                     placeholder={editandoMetaId ? "Actualiza tu meta" : "Ej. Leer 10 libros este año"}
-                    value={editandoMetaId ? editandoMetaTexto : nuevaMetaTexto}
-                    onChange={(event) => editandoMetaId ? setEditandoMetaTexto(event.currentTarget.value) : setNuevaMetaTexto(event.currentTarget.value)}
+                    value={metaInputTexto}
+                    onChange={(event) => setMetaInputTexto(event.currentTarget.value)}
                     rightSection={
                         editandoMetaId && (
-                            <ActionIcon onClick={cancelEditMeta} size="lg" variant="subtle" color="gray">
+                            <ActionIcon onClick={resetForm} size="lg" variant="subtle" color="gray" title="Cancelar edición">
                                 <IconX style={{ width: rem(18), height: rem(18) }} />
                             </ActionIcon>
                         )
                     }
+                    style={{ flexGrow: 2 }}
                 />
-                <Button onClick={handleAddOrUpdateMeta} variant="filled" color="grape">
+                <Button 
+                    onClick={handleAddOrUpdateMeta} 
+                    variant="filled" 
+                    color="grape" 
+                    leftSection={editandoMetaId ? <IconEdit size={rem(18)} /> : <IconPlus size={rem(18)} />}
+                    style={{ flexGrow: 1 }}
+                >
                     {editandoMetaId ? 'Actualizar Meta' : 'Añadir Meta'}
                 </Button>
             </Group>
@@ -171,30 +237,44 @@ function MetasSection() {
                     label="Total de Pasos:"
                     placeholder="0"
                     min={0}
-                    value={editandoMetaId ? editandoMetaTotalPasos : nuevaMetaTotalPasos}
-                    onChange={(value) => editandoMetaId ? setEditandoMetaTotalPasos(value) : setNuevaMetaTotalPasos(value)}
-                    description="Deja en 0 para una meta simple."
+                    value={metaInputTotalPasos}
+                    onChange={(value) => setMetaInputTotalPasos(value)}
+                    description="Deja en 0 para una meta simple (marcar como completada/pendiente)."
+                    style={{ flexGrow: 1 }}
                 />
-                { (editandoMetaId && editandoMetaTotalPasos > 0) || (!editandoMetaId && nuevaMetaTotalPasos > 0) ? (
+                { metaInputTotalPasos > 0 && (
                     <NumberInput
                         label="Pasos Actuales:"
                         placeholder="0"
                         min={0}
-                        max={editandoMetaId ? editandoMetaTotalPasos : nuevaMetaTotalPasos}
-                        value={editandoMetaId ? editandoMetaCurrentPasos : nuevaMetaCurrentPasos}
-                        onChange={(value) => editandoMetaId ? setEditandoMetaCurrentPasos(value) : setNuevaMetaCurrentPasos(value)}
+                        max={metaInputTotalPasos}
+                        value={metaInputCurrentPasos}
+                        onChange={(value) => setMetaInputCurrentPasos(value)}
+                        style={{ flexGrow: 1 }}
                     />
-                ) : null}
+                )}
             </Group>
 
-
-            <Group position="apart" mb="md">
+            <Group position="apart" mb="md" grow>
                 <Badge color="green" size="lg" variant="light">
-                    Completadas: {metasCompletadas}
+                    Completadas: {metasCompletadasCount}
                 </Badge>
                 <Badge color="blue" size="lg" variant="light">
-                    Pendientes: {metasPendientes}
+                    Pendientes: {metasPendientesCount}
                 </Badge>
+                <Select
+                    label="Filtrar por:"
+                    placeholder="Todas"
+                    data={[
+                        { value: 'todas', label: 'Todas las metas' },
+                        { value: 'pendientes', label: 'Metas pendientes' },
+                        { value: 'completadas', label: 'Metas completadas' },
+                    ]}
+                    value={filtroEstado}
+                    onChange={setFiltroEstado}
+                    leftSection={<IconFilter size={rem(16)} />}
+                    style={{ flexGrow: 1 }}
+                />
             </Group>
 
             {metas.length === 0 ? (
@@ -203,7 +283,7 @@ function MetasSection() {
                 </Text>
             ) : (
                 <List spacing="xs" size="sm" center>
-                    {metas.map((meta) => {
+                    {metasFiltradas.map((meta) => {
                         const isProgressMeta = typeof meta.totalSteps !== 'undefined' && meta.totalSteps > 0;
                         const percentage = isProgressMeta
                             ? (meta.currentSteps / meta.totalSteps) * 100
@@ -221,19 +301,20 @@ function MetasSection() {
                                 }}
                             >
                                 <Box style={{ flexGrow: 1 }}>
-                                    <Group position="apart">
+                                    <Group position="apart" align="center">
                                         {isProgressMeta ? (
-                                            <Text size="md" fw={500}>{meta.text}</Text>
+                                            <Text size="md" fw={500} style={{ flexGrow: 1 }}>{meta.text}</Text>
                                         ) : (
                                             <Checkbox
                                                 checked={meta.completed}
                                                 onChange={() => toggleMetaCompleted(meta.id)}
                                                 size="md"
-                                                label={meta.text}
+                                                label={<Text size="md" fw={500}>{meta.text}</Text>}
                                                 color="teal"
+                                                style={{ flexGrow: 1 }}
                                             />
                                         )}
-                                        <Group>
+                                        <Group spacing="xs">
                                             {isProgressMeta && (
                                                 <Text size="sm" c="dimmed">
                                                     {meta.currentSteps} / {meta.totalSteps} pasos
@@ -245,6 +326,7 @@ function MetasSection() {
                                                     color="blue"
                                                     onClick={() => startEditMeta(meta)}
                                                     size="md"
+                                                    title="Editar meta"
                                                 >
                                                     <IconEdit style={{ width: rem(16), height: rem(16) }} />
                                                 </ActionIcon>
@@ -254,6 +336,7 @@ function MetasSection() {
                                                 color="red"
                                                 onClick={() => handleDeleteMeta(meta.id)}
                                                 size="md"
+                                                title="Eliminar meta"
                                             >
                                                 <IconTrash style={{ width: rem(16), height: rem(16) }} />
                                             </ActionIcon>
@@ -272,7 +355,8 @@ function MetasSection() {
                                                     color="blue"
                                                     onClick={() => updateMetaSteps(meta.id, -1)}
                                                     size="sm"
-                                                    disabled={meta.currentSteps <= 0}
+                                                    disabled={meta.currentSteps <= 0 || meta.completed}
+                                                    title="Disminuir pasos"
                                                 >
                                                     <IconMinus style={{ width: rem(14), height: rem(14) }} />
                                                 </ActionIcon>
@@ -281,7 +365,8 @@ function MetasSection() {
                                                     color="green"
                                                     onClick={() => updateMetaSteps(meta.id, 1)}
                                                     size="sm"
-                                                    disabled={meta.currentSteps >= meta.totalSteps && meta.totalSteps > 0}
+                                                    disabled={meta.currentSteps >= meta.totalSteps && meta.totalSteps > 0 || meta.completed}
+                                                    title="Aumentar pasos"
                                                 >
                                                     <IconPlus style={{ width: rem(14), height: rem(14) }} />
                                                 </ActionIcon>

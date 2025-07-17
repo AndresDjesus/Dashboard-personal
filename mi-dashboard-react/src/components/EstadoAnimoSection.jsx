@@ -1,14 +1,16 @@
+// src/components/EstadoAnimoSection.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Title, Text, Group, Rating, Button, Center, Box, useMantineTheme, rem } from '@mantine/core';
-import { IconChartLine } from '@tabler/icons-react';
+import { IconChartLine, IconMoodHappy } from '@tabler/icons-react'; // Añadido IconMoodHappy para el título
+import { notifications } from '@mantine/notifications'; // Importar notificaciones
+
 import {
     cargarDatos,
     guardarDatos,
-    // REMOVIDO: getDiaActualIndex, // <-- Esta función devuelve un número (0-6), no la fecha YYYY-MM-DD
-    getTodayFormattedDate, // <-- AÑADIDO: Esta es la función correcta para la fecha actual
+    getTodayFormattedDate, // <-- ¡Asegúrate de que esta función exista en localStorageUtils!
     getStartOfWeek,
     getDiasSemanaNombres
-} from '../utils/localStorageUtils'; // ¡Asegúrate de que este archivo ya tenga 'getTodayFormattedDate' definido!
+} from '../utils/localStorageUtils';
 
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { Line } from 'react-chartjs-2';
@@ -22,7 +24,7 @@ const moodEmojis = [
     '😔', // 2: Mal
     '😐', // 3: Neutral
     '😊', // 4: Bien
-    '😄'  // 5: Excelente
+    '😄'  // 5: Excelente
 ];
 
 function EstadoAnimoSection() {
@@ -30,23 +32,24 @@ function EstadoAnimoSection() {
 
     const [estadoAnimoSemana, setEstadoAnimoSemana] = useState(() => {
         const data = cargarDatos('estadoAnimoSemana', { weekStartDate: '', dailyMoods: {} });
-        // Aseguramos que currentWeekStartFormatted siempre sea un string 'YYYY-MM-DD'
         const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
-
-        console.log('--- Inicializando estadoAnimoSemana ---');
-        console.log('Datos cargados de localStorage:', data);
-        console.log('Inicio de semana actual (formateado):', currentWeekStartFormatted);
 
         // Reinicia si la semana almacenada no es la semana actual
         if (data.weekStartDate !== currentWeekStartFormatted) {
             console.log('¡Nueva semana detectada! Reiniciando estados de ánimo.');
+            // Muestra una notificación si se reinicia la semana
+            notifications.show({
+                title: 'Reinicio Semanal de Ánimo',
+                message: 'Una nueva semana ha comenzado. ¡Registra tu estado de ánimo diario!',
+                color: 'blue',
+                icon: <IconMoodHappy size={18} />,
+                autoClose: 5000,
+            });
             return { weekStartDate: currentWeekStartFormatted, dailyMoods: {} };
         }
-        console.log('Misma semana. Cargando progreso de ánimo existente.');
         return data;
     });
 
-    // CORREGIDO: Ahora usa getTodayFormattedDate para obtener la fecha del día actual
     const diaActualFormatted = getTodayFormattedDate(); // Obtiene la fecha actual en YYYY-MM-DD
     const [rating, setRating] = useState(estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0);
 
@@ -55,13 +58,11 @@ function EstadoAnimoSection() {
     // Guarda el estado de ánimo en localStorage cada vez que cambia
     useEffect(() => {
         guardarDatos('estadoAnimoSemana', estadoAnimoSemana);
-        console.log("Estado de ánimo guardado en localStorage:", estadoAnimoSemana);
     }, [estadoAnimoSemana]);
 
     // Efecto para actualizar el rating actual si el día cambia o se carga el componente
     useEffect(() => {
-        setRating(estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0); // Usa la fecha formateada
-        console.log("Rating para el día actual ('" + diaActualFormatted + "') desde estado:", estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0);
+        setRating(estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0);
     }, [diaActualFormatted, estadoAnimoSemana.dailyMoods]);
 
 
@@ -71,13 +72,12 @@ function EstadoAnimoSection() {
             const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
             if (estadoAnimoSemana.weekStartDate !== currentWeekStartFormatted) {
                 setEstadoAnimoSemana({ weekStartDate: currentWeekStartFormatted, dailyMoods: {} });
-                console.log(`Estado de ánimo reiniciado por intervalo para la nueva semana: ${currentWeekStartFormatted}`);
             }
         };
 
         checkWeekChange();
         // Comprobar cada hora (60 minutos * 60 segundos * 1000 milisegundos)
-        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); 
+        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000);
 
         return () => clearInterval(intervalId);
     }, [estadoAnimoSemana.weekStartDate]);
@@ -85,17 +85,23 @@ function EstadoAnimoSection() {
 
     const handleSaveMood = () => {
         if (rating === 0) {
-            alert('Por favor, selecciona tu estado de ánimo antes de registrar.');
+            notifications.show({
+                title: 'Error de Registro',
+                message: 'Por favor, selecciona tu estado de ánimo antes de registrar.',
+                color: 'red',
+            });
             return;
         }
         setEstadoAnimoSemana(prev => {
             const newDailyMoods = { ...prev.dailyMoods };
-            // CORREGIDO: Usar la fecha formateada como clave
-            newDailyMoods[diaActualFormatted] = rating; 
-            console.log(`Guardando ánimo para el día ${diaActualFormatted}: ${rating}`);
+            newDailyMoods[diaActualFormatted] = rating;
+            notifications.show({
+                title: 'Estado de Ánimo Registrado',
+                message: `Tu ánimo de hoy (${moodEmojis[rating - 1]}) ha sido guardado.`,
+                color: 'green',
+            });
             return { ...prev, dailyMoods: newDailyMoods };
         });
-        alert('¡Estado de ánimo registrado!');
     };
 
     // Función auxiliar para obtener las fechas de la semana actual (Lunes a Domingo)
@@ -108,7 +114,6 @@ function EstadoAnimoSection() {
             date.setDate(startOfWeek.getDate() + i); // Añadir i días
             dates.push(date.toISOString().split('T')[0]); // Formato YYYY-MM-DD
         }
-        console.log("Fechas generadas para la semana:", dates);
         return dates;
     };
 
@@ -122,9 +127,7 @@ function EstadoAnimoSection() {
                 label: 'Estado de Ánimo',
                 // Data: mapea las fechas generadas a los datos guardados
                 data: fechasSemana.map(date => {
-                    // CORREGIDO: Buscar el estado de ánimo usando la clave YYYY-MM-DD
-                    const value = estadoAnimoSemana.dailyMoods[date] || 0; 
-                    console.log(`Buscando ánimo para ${date}: ${value}`);
+                    const value = estadoAnimoSemana.dailyMoods[date] || 0;
                     return value;
                 }),
                 borderColor: theme.colors.grape[6],
@@ -140,6 +143,7 @@ function EstadoAnimoSection() {
 
     const chartOptions = {
         responsive: true,
+        maintainAspectRatio: false, // Permite que el gráfico se ajuste al contenedor
         plugins: {
             legend: {
                 display: false,
