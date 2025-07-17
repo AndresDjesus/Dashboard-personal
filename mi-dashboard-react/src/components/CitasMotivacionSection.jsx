@@ -1,9 +1,9 @@
 // src/components/CitasMotivacionSection.jsx
 import React, { useState, useEffect } from 'react';
-import { Paper, Title, Text, Box } from '@mantine/core';
-import { IconBulb } from '@tabler/icons-react'; 
+import { Paper, Title, Text, Box } from '@mantine/core'; // Añadido Box
+import { IconBulb } from '@tabler/icons-react'; // Cambiado a IconBulb como en tu código original
 
-// Importamos getDiaActual, cargarDatos y guardarDatos
+// Importamos cargarDatos, guardarDatos y la nueva getDiaActualIndex
 import { cargarDatos, guardarDatos, getDiaActualIndex } from '../utils/localStorageUtils';
 
 function CitasMotivacionSection() {
@@ -20,13 +20,14 @@ function CitasMotivacionSection() {
         { texto: "Si puedes soñarlo, puedes lograrlo.", autor: "Zig Ziglar" }
     ];
 
-    const [citaActual, setCitaActual] = useState({});
+    const [citaActual, setCitaActual] = useState({ texto: "", autor: "" }); // Inicializar con valores vacíos
 
     useEffect(() => {
-        const hoy = getDiaActualIndex();
+        const hoy = getDiaActualIndex(); // Obtiene la fecha actual en formato "YYYY-MM-DD"
         const storedQuoteData = cargarDatos('citaDelDia', { date: '', index: -1 });
 
-        // Si es un nuevo día o no hay cita almacenada para hoy
+        // Verifica si es un nuevo día O si no hay cita almacenada para hoy
+        // La condición `storedQuoteData.index === -1` maneja el caso inicial o de reseteo
         if (storedQuoteData.date !== hoy || storedQuoteData.index === -1) {
             // Selecciona un índice aleatorio
             const nuevoIndice = Math.floor(Math.random() * citas.length);
@@ -34,16 +35,38 @@ function CitasMotivacionSection() {
             // Guarda la fecha y el índice en localStorage
             guardarDatos('citaDelDia', { date: hoy, index: nuevoIndice });
         } else {
-            // Si ya hay una cita para hoy, la cargamos
-            setCitaActual(citas[storedQuoteData.index]);
+            // Si ya hay una cita para hoy, la cargamos desde el índice guardado
+            // Asegúrate de que el índice sea válido para evitar errores si las citas cambian
+            if (storedQuoteData.index >= 0 && storedQuoteData.index < citas.length) {
+                setCitaActual(citas[storedQuoteData.index]);
+            } else {
+                // Si el índice guardado es inválido, carga una nueva cita aleatoria
+                const nuevoIndice = Math.floor(Math.random() * citas.length);
+                setCitaActual(citas[nuevoIndice]);
+                guardarDatos('citaDelDia', { date: hoy, index: nuevoIndice });
+            }
         }
-    }, [citas]); 
+    }, []); // El array de dependencias vacío asegura que se ejecute solo una vez al montar
 
     return (
-        <Paper shadow="xl" p="xl" withBorder radius="md" style={{ backgroundColor: 'var(--mantine-color-dark-6)' }}>
-            <Title order={1} ta="center" mb="lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: 'var(--mantine-color-grape-4)' }}>
-                <IconBulb size={40} /> {/* Usando IconSparkles como ejemplo */}
-                Tu Frase del Dia
+        <Paper shadow="xl" p="xl" withBorder radius="md" 
+            style={{ 
+                backgroundColor: 'var(--mantine-color-dark-6)', 
+                // Asegúrate de que los colores 'grape' estén disponibles en tu tema Mantine,
+                // o usa colores predeterminados si no has personalizado.
+            }}
+        >
+            <Title order={1} ta="center" mb="lg" 
+                style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '10px', 
+                    color: 'var(--mantine-color-grape-4)' // Color personalizado
+                }}
+            >
+                <IconBulb size={40} /> 
+                Tu Frase del Día
             </Title>
 
             <Box ta="center" py="lg">
@@ -53,9 +76,9 @@ function CitasMotivacionSection() {
                     style={{
                         fontStyle: 'italic',
                         lineHeight: 1.4,
-                        color: 'var(--mantine-color-grape-2)',
+                        color: 'var(--mantine-color-grape-2)', // Color personalizado
                         marginBottom: '1rem',
-                        fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
+                        fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', // Responsivo
                     }}
                 >
                     "{citaActual.texto}"

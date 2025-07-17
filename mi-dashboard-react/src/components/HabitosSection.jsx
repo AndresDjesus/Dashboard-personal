@@ -4,14 +4,16 @@ import {
     Paper, Title, Text, TextInput, Button, Group, ActionIcon, rem, Box, Badge, Table, Checkbox,
 } from '@mantine/core';
 import { IconChecklist, IconTrash } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications'; // Importar notificaciones
+import { modals } from '@mantine/modals'; // Importar modales
 
 // Importa las utilidades de localStorage actualizadas
-import { 
-    cargarDatos, 
-    guardarDatos, 
-    getStartOfWeek, 
-    getDiasSemanaNombres, 
-    getDiaActualIndex 
+import {
+    cargarDatos,
+    guardarDatos,
+    getStartOfWeek,
+    getDiasSemanaNombres,
+    getDiaActualIndex
 } from '../utils/localStorageUtils';
 
 function HabitosSection() {
@@ -66,11 +68,17 @@ function HabitosSection() {
     useEffect(() => {
         const checkWeekChange = () => {
             const startOfCurrentWeek = getStartOfWeek().toISOString().split('T')[0];
-            
+
             setHabitosCompletados(prev => {
                 // Si la semana actual es diferente a la semana almacenada, reiniciar
                 if (prev.weekStartDate !== startOfCurrentWeek) {
-                    console.log(`Reinicio de hábitos programado: ${startOfCurrentWeek}`);
+                    notifications.show({
+                        title: 'Reinicio Semanal de Hábitos',
+                        message: '¡Una nueva semana ha comenzado! Tu progreso de hábitos ha sido reiniciado.',
+                        color: 'blue',
+                        icon: <IconCalendar size={18} />,
+                        autoClose: 5000,
+                    });
                     return { weekStartDate: startOfCurrentWeek, completions: {} };
                 }
                 return prev; // Si es la misma semana, no hacer nada
@@ -87,7 +95,7 @@ function HabitosSection() {
     // 7. Utilidades de días de la semana
     // -----------------------------------------------------------
     const diasSemanaNombres = getDiasSemanaNombres(); // ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-    const diaActualNombre = diasSemanaNombres[getDiaActualIndex()]; // Nombre del día actual, ej. 'Lun'
+    const diaActualIndex = getDiaActualIndex(); // Índice numérico del día actual (0 para Lun, 6 para Dom)
 
     // -----------------------------------------------------------
     // 8. Handlers de Eventos
@@ -95,7 +103,11 @@ function HabitosSection() {
 
     const handleAddHabito = () => {
         if (nuevoHabitoTexto.trim() === '') {
-            alert('El hábito no puede estar vacío.');
+            notifications.show({
+                title: 'Error de Entrada',
+                message: 'El nombre del hábito no puede estar vacío.',
+                color: 'red',
+            });
             return;
         }
         // Crear un nuevo objeto de hábito
@@ -105,36 +117,68 @@ function HabitosSection() {
         };
         setHabitos([...habitos, nuevoHabito]); // Añadir el nuevo hábito a la lista
         setNuevoHabitoTexto(''); // Limpiar el input
+        notifications.show({
+            title: 'Hábito Añadido',
+            message: `"${nuevoHabito.text}" ha sido añadido a tu lista de hábitos.`,
+            color: 'green',
+        });
     };
 
     const handleDeleteHabito = (idAEliminar) => {
-        if (window.confirm('¿Estás seguro de que quieres eliminar este hábito?')) {
-            // Eliminar de la lista de hábitos
-            setHabitos(prevHabitos => prevHabitos.filter(habito => habito.id !== idAEliminar));
+        modals.openConfirmModal({
+            title: 'Confirmar Eliminación de Hábito',
+            children: (
+                <Text size="sm">
+                    ¿Estás seguro de que quieres eliminar este hábito? Esta acción no se puede deshacer.
+                </Text>
+            ),
+            labels: { confirm: 'Sí, eliminar', cancel: 'No, cancelar' },
+            confirmProps: { color: 'red' },
+            onCancel: () => notifications.show({
+                title: 'Eliminación Cancelada',
+                message: 'El hábito no fue eliminado.',
+                color: 'gray',
+            }),
+            onConfirm: () => {
+                // Eliminar de la lista de hábitos
+                setHabitos(prevHabitos => prevHabitos.filter(habito => habito.id !== idAEliminar));
 
-            // Eliminar también su progreso de completado
-            setHabitosCompletados(prev => {
-                const newCompletions = JSON.parse(JSON.stringify(prev.completions)); // Copia profunda
-                delete newCompletions[idAEliminar]; // Eliminar la entrada del hábito
-                return { ...prev, completions: newCompletions };
-            });
-        }
+                // Eliminar también su progreso de completado
+                setHabitosCompletados(prev => {
+                    const newCompletions = JSON.parse(JSON.stringify(prev.completions)); // Copia profunda
+                    delete newCompletions[idAEliminar]; // Eliminar la entrada del hábito
+                    return { ...prev, completions: newCompletions };
+                });
+                notifications.show({
+                    title: 'Hábito Eliminado',
+                    message: 'El hábito ha sido eliminado.',
+                    color: 'orange',
+                });
+            },
+        });
     };
 
-    const toggleHabitoCompleted = (habitoId, diaNombre) => {
+    const toggleHabitoCompleted = (habitoId, diaIndex) => {
+        const diaNombre = diasSemanaNombres[diaIndex]; // Obtener el nombre del día para el índice
         setHabitosCompletados(prev => {
             // Clonar profundamente para asegurar inmutabilidad y que React detecte el cambio
             const newCompletions = JSON.parse(JSON.stringify(prev.completions));
-            
+
             // Asegurarse de que el objeto del hábito exista
             if (!newCompletions[habitoId]) {
                 newCompletions[habitoId] = {};
             }
             // Invertir el estado de completado para el día específico
             newCompletions[habitoId][diaNombre] = !newCompletions[habitoId][diaNombre];
-            
-            console.log(`Toggle Hábito: ${habitoId}, Día: ${diaNombre}. Nuevo estado: ${newCompletions[habitoId][diaNombre]}`);
-            
+
+            // Feedback de notificación
+            const habitoText = habitos.find(h => h.id === habitoId)?.text;
+            notifications.show({
+                title: 'Progreso de Hábito',
+                message: `"${habitoText}" marcado como ${newCompletions[habitoId][diaNombre] ? 'completado' : 'pendiente'} para el ${diaNombre}.`,
+                color: newCompletions[habitoId][diaNombre] ? 'blue' : 'gray',
+            });
+
             return { ...prev, completions: newCompletions };
         });
     };
@@ -143,7 +187,7 @@ function HabitosSection() {
     // 9. Cálculos para las insignias de progreso
     // -----------------------------------------------------------
     const habitosCompletadosHoyCount = habitos.filter(habito =>
-        habitosCompletados.completions[habito.id]?.[diaActualNombre]
+        habitosCompletados.completions[habito.id]?.[diasSemanaNombres[diaActualIndex]] // Usar el nombre del día actual
     ).length;
     const habitosPendientesHoyCount = habitos.length - habitosCompletadosHoyCount;
 
@@ -154,7 +198,7 @@ function HabitosSection() {
         <Paper shadow="sm" p="lg" withBorder radius="md">
             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <IconChecklist size={28} />
-                Mis Hábitos Diarios
+                Mis Hábitos Semanales
             </Title>
 
             <Group mb="md" grow>
@@ -163,7 +207,7 @@ function HabitosSection() {
                     placeholder="Ej. Beber 2L de agua"
                     value={nuevoHabitoTexto}
                     onChange={(event) => setNuevoHabitoTexto(event.currentTarget.value)}
-                    onKeyPress={(event) => {
+                    onKeyPress={(event) => { // onKeyPress es preferible para 'Enter'
                         if (event.key === 'Enter') {
                             handleAddHabito();
                         }
@@ -190,9 +234,6 @@ function HabitosSection() {
             ) : (
                 <Box style={{ overflowX: 'auto' }}>
                     <Table
-                        // La key fuerza la re-renderización completa de la tabla cuando los datos cambian
-                        // Esto es crucial para que las checkboxes reflejen el estado correctamente
-                        key={`${JSON.stringify(habitos)}-${JSON.stringify(habitosCompletados)}`}
                         striped
                         highlightOnHover
                         withTableBorder
@@ -202,9 +243,19 @@ function HabitosSection() {
                     >
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th style={{ width: rem(150) }}>Hábito</Table.Th>
-                                {diasSemanaNombres.map(dia => (
-                                    <Table.Th key={dia} style={{ textAlign: 'center', width: rem(50) }}>{dia}</Table.Th>
+                                <Table.Th style={{ width: rem(150), minWidth: rem(150) }}>Hábito</Table.Th>
+                                {diasSemanaNombres.map((dia, index) => (
+                                    <Table.Th
+                                        key={dia}
+                                        style={{
+                                            textAlign: 'center',
+                                            width: rem(50),
+                                            color: index === diaActualIndex ? 'var(--mantine-color-blue-4)' : 'inherit',
+                                            fontWeight: index === diaActualIndex ? 700 : 500,
+                                        }}
+                                    >
+                                        {dia}
+                                    </Table.Th>
                                 ))}
                                 <Table.Th style={{ width: rem(50), textAlign: 'center' }}>Acciones</Table.Th>
                             </Table.Tr>
@@ -213,14 +264,14 @@ function HabitosSection() {
                             {habitos.map((habito) => (
                                 <Table.Tr key={habito.id}>
                                     <Table.Td>{habito.text}</Table.Td>
-                                    {diasSemanaNombres.map(dia => {
+                                    {diasSemanaNombres.map((dia, index) => {
                                         // Determinar si la casilla de verificación debe estar marcada
                                         const isCompleted = habitosCompletados.completions[habito.id]?.[dia] || false;
                                         return (
                                             <Table.Td key={dia} style={{ textAlign: 'center' }}>
                                                 <Checkbox
                                                     checked={isCompleted}
-                                                    onChange={() => toggleHabitoCompleted(habito.id, dia)}
+                                                    onChange={() => toggleHabitoCompleted(habito.id, index)} // Pasar el índice del día
                                                     color="teal"
                                                     size="sm"
                                                     aria-label={`Marcar ${habito.text} para ${dia}`}
@@ -244,7 +295,7 @@ function HabitosSection() {
                     </Table>
                 </Box>
             )}
-             <Text size="sm" c="dimmed" mt="xs" ta="center">
+            <Text size="sm" c="dimmed" mt="xs" ta="center">
                 *El progreso de los hábitos se reinicia automáticamente cada inicio de semana (lunes).
             </Text>
         </Paper>

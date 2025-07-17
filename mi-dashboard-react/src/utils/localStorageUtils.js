@@ -188,3 +188,4 @@ export const importAllData = (file) => {
         reader.readAsText(file); // Lee el contenido del archivo como texto
     });
 };
+
