@@ -189,3 +189,73 @@ export const importAllData = (file) => {
     });
 };
 
+/**
+ * Función auxiliar para convertir un array de objetos a formato CSV.
+ * @param {Array<Object>} data El array de objetos a convertir.
+ * @param {Array<string>} headers Un array opcional de strings para los encabezados.
+ * @returns {string} El contenido del archivo CSV.
+ */
+const convertToCsv = (data, headers) => {
+    if (!data || data.length === 0) return '';
+
+    // Si no se proporcionan encabezados, usar las claves del primer objeto
+    const actualHeaders = headers || Object.keys(data[0]);
+
+    // Crear la fila de encabezados y escapar comillas
+    const headerRow = actualHeaders.map(header => `"${header}"`).join(',');
+
+    // Crear las filas de datos
+    const dataRows = data.map(row =>
+        actualHeaders.map(header => {
+            const value = row[header];
+            // Asegurarse de que los valores sean seguros para CSV (manejar comas, comillas, saltos de línea)
+            const stringValue = String(value).replace(/"/g, '""'); // Escapar comillas dobles
+            return `"${stringValue}"`;
+        }).join(',')
+    );
+
+    return [headerRow, ...dataRows].join('\n');
+};
+
+/**
+ * Función para exportar datos específicos (ej. tareas, finanzas) a un archivo CSV.
+ * @param {Array<Object>} data Los datos que se van a exportar.
+ * @param {string} filename El nombre base del archivo a descargar.
+ * @param {Array<string>} headers Un array opcional de strings para los encabezados del CSV.
+ */
+export const exportDataToCsv = (data, filename, headers = null) => {
+    try {
+        if (!data || data.length === 0) {
+            notifications.show({
+                title: 'No hay datos para exportar',
+                message: `No se encontraron datos para "${filename}".`,
+                color: 'orange',
+            });
+            return;
+        }
+
+        const csvContent = convertToCsv(data, headers);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        notifications.show({
+            title: 'Datos Exportados',
+            message: `"${filename}" exportado con éxito como archivo CSV.`,
+            color: 'green',
+        });
+    } catch (error) {
+        console.error(`Error al exportar ${filename} a CSV:`, error);
+        notifications.show({
+            title: 'Error al Exportar',
+            message: `No se pudieron exportar los datos de "${filename}" a CSV.`,
+            color: 'red',
+        });
+    }
+};
