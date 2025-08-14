@@ -1,22 +1,25 @@
-// src/components/FinanzasSection.jsx
+
 import React, { useState, useEffect } from 'react';
 import {
     Paper, Title, Text, Group, TextInput, Button, Select, ActionIcon,
     Table, Badge, Flex, Center, rem, Box
 } from '@mantine/core';
-import { IconPigMoney, IconTrash, IconPlus, IconWallet } from '@tabler/icons-react';
+// Importa el nuevo icono para Excel
+import { IconPigMoney, IconTrash, IconPlus, IconWallet, IconFileSpreadsheet } from '@tabler/icons-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     BarChart, Bar
 } from 'recharts';
 import { notifications } from '@mantine/notifications'; // Importar notificaciones de Mantine
 
-import { 
-    cargarDatos, 
-    guardarDatos, 
-    getDiasSemanaNombres, 
-    getStartOfWeek, 
-    getTodayFormattedDate 
+import {
+    cargarDatos,
+    guardarDatos,
+    getDiasSemanaNombres,
+    getStartOfWeek,
+    getTodayFormattedDate,
+    // Importa la nueva función para exportar a XLSX
+    exportToXlsx
 } from '../utils/localStorageUtils'; // ¡Usamos tus funciones de localStorageUtils!
 
 function FinanzasSection() {
@@ -31,20 +34,17 @@ function FinanzasSection() {
     // Efecto para cargar las categorías de presupuesto y escuchar cambios en localStorage
     useEffect(() => {
         const loadCategories = () => {
-            // Asegúrate de que 'presupuestoItems' se guarde como un array de objetos { categoria: "Nombre", ... }
             const presupuestoItems = cargarDatos('presupuestoItems', []);
             const options = presupuestoItems.map(item => ({
-                value: item.categoria, // Asume que cada item de presupuesto tiene una propiedad 'categoria'
+                value: item.categoria,
                 label: item.categoria
             }));
             setCategoriasPresupuesto(options);
         };
 
-        loadCategories(); // Carga inicial
+        loadCategories();
 
-        // Escucha cambios en localStorage para actualizar las categorías dinámicamente
         const handleStorageChange = (event) => {
-            // Solo recarga si el cambio fue en 'presupuestoItems' o si no se especificó la clave (cambio genérico)
             if (event.key === 'presupuestoItems' || !event.key) {
                 loadCategories();
             }
@@ -88,12 +88,12 @@ function FinanzasSection() {
         }
 
         const nuevoMovimiento = {
-            id: Date.now().toString(), // ID único basado en el timestamp
+            id: Date.now().toString(),
             descripcion: descripcion.trim(),
             monto: parsedMonto,
             tipo: tipo,
-            fecha: getTodayFormattedDate(), // Usamos tu función para la fecha actual
-            categoria: tipo === 'gasto' ? categoriaGasto : undefined, // Solo añade categoría si es gasto
+            fecha: getTodayFormattedDate(),
+            categoria: tipo === 'gasto' ? categoriaGasto : undefined,
         };
 
         setMovimientos(prevMovimientos => [...prevMovimientos, nuevoMovimiento]);
@@ -135,11 +135,17 @@ function FinanzasSection() {
                 },
                 {
                     label: 'Cancelar',
-                    onClick: () => notifications.hide('Confirmar Eliminación'), // Oculta la notificación de confirmación
+                    onClick: () => notifications.hide('Confirmar Eliminación'),
                 },
             ],
-            id: 'Confirmar Eliminación' // ID para referenciar esta notificación
+            id: 'Confirmar Eliminación'
         });
+    };
+
+    // --- FUNCIÓN ACTUALIZADA PARA EXPORTAR A XLSX ---
+    const handleExportFinanzas = () => {
+        const dataForExport = movimientos.map(({ id, ...rest }) => rest);
+        exportToXlsx(dataForExport, 'movimientos_financieros', 'Movimientos');
     };
 
     // Cálculo de balances
@@ -157,16 +163,15 @@ function FinanzasSection() {
         for (let i = 0; i < 7; i++) {
             const date = new Date(currentDay);
             date.setDate(currentDay.getDate() + i);
-            days.push(date.toISOString().split('T')[0]); // Formato YYYY-MM-DD
+            days.push(date.toISOString().split('T')[0]);
         }
         return days;
     };
 
-    const diasSemanaNombres = getDiasSemanaNombres(); // Obtiene ['Lun', 'Mar', ..., 'Dom']
-    const startOfCurrentWeek = getStartOfWeek(); // Obtiene el objeto Date del Lunes de esta semana
-    const currentWeekDaysFormatted = getWeekRange(startOfCurrentWeek); // Obtiene las fechas formateadas para la semana
+    const diasSemanaNombres = getDiasSemanaNombres();
+    const startOfCurrentWeek = getStartOfWeek();
+    const currentWeekDaysFormatted = getWeekRange(startOfCurrentWeek);
 
-    // Mapeamos los datos de movimientos a la estructura que Recharts necesita
     const chartData = diasSemanaNombres.map((diaNombre, index) => {
         const fechaDelDia = currentWeekDaysFormatted[index];
         const ingresosDelDia = movimientos
@@ -177,7 +182,7 @@ function FinanzasSection() {
             .reduce((sum, mov) => sum + mov.monto, 0);
 
         return {
-            name: diaNombre, // Nombre del día (Lun, Mar, etc.)
+            name: diaNombre,
             Ingresos: ingresosDelDia,
             Gastos: gastosDelDia,
         };
@@ -185,7 +190,7 @@ function FinanzasSection() {
 
     // Filas para la tabla de historial de movimientos
     const rows = movimientos
-        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()) // Ordenar por fecha, más reciente primero
+        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
         .map((movimiento) => (
             <Table.Tr key={movimiento.id}>
                 <Table.Td>{movimiento.descripcion}</Table.Td>
@@ -215,7 +220,7 @@ function FinanzasSection() {
                 Mis Finanzas
             </Title>
 
-            <Group position="apart" mb="md" grow> {/* Usamos 'grow' para que las badges ocupen todo el espacio */}
+            <Group position="apart" mb="md" grow>
                 <Badge color={balanceTotal >= 0 ? 'teal' : 'red'} size="xl" variant="light" leftSection={<IconWallet size={20} />}>
                     Balance: ${balanceTotal.toFixed(2)}
                 </Badge>
@@ -251,7 +256,7 @@ function FinanzasSection() {
                     value={tipo}
                     onChange={(value) => {
                         setTipo(value);
-                        if (value === 'ingreso') setCategoriaGasto(''); // Limpiar categoría si es ingreso
+                        if (value === 'ingreso') setCategoriaGasto('');
                     }}
                     style={{ flexGrow: 1, minWidth: '120px' }}
                 />
@@ -259,7 +264,7 @@ function FinanzasSection() {
                     <Select
                         label="Categoría de Gasto"
                         placeholder="Selecciona o añade"
-                        data={categoriasPresupuesto} // Las categorías vienen de la sección de presupuesto
+                        data={categoriasPresupuesto}
                         value={categoriaGasto}
                         onChange={setCategoriaGasto}
                         searchable
@@ -271,7 +276,7 @@ function FinanzasSection() {
                 <Button
                     onClick={handleAddMovimiento}
                     leftSection={<IconPlus size={16} />}
-                    mt="auto" // Alinea el botón en la parte inferior si los inputs tienen labels
+                    mt="auto"
                     style={{ flexGrow: 1, minWidth: '100px' }}
                 >
                     Añadir
@@ -280,14 +285,13 @@ function FinanzasSection() {
 
             <Title order={3} ta="center" mb="md">Ingresos y Gastos Semanales</Title>
             <Box h={300} mb="xl">
-                {/* ResponsiveContainer asegura que el gráfico se adapte al tamaño del Box */}
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                         data={chartData}
                         margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
                     >
                         <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
-                        <XAxis dataKey="name" stroke="var(--mantine-color-text)" /> {/* Usa variable CSS para el color */}
+                        <XAxis dataKey="name" stroke="var(--mantine-color-text)" />
                         <YAxis stroke="var(--mantine-color-text)" />
                         <Tooltip
                             formatter={(value, name) => [`$${value.toFixed(2)}`, name]}
@@ -295,13 +299,27 @@ function FinanzasSection() {
                             labelStyle={{ color: 'var(--mantine-color-text)' }}
                         />
                         <Legend />
-                        <Bar dataKey="Ingresos" fill="#82ca9d" /> {/* Color verde para ingresos */}
-                        <Bar dataKey="Gastos" fill="#ff7f50" /> {/* Color naranja para gastos */}
+                        <Bar dataKey="Ingresos" fill="#82ca9d" />
+                        <Bar dataKey="Gastos" fill="#ff7f50" />
                     </BarChart>
                 </ResponsiveContainer>
             </Box>
 
             <Title order={3} ta="center" mb="md">Historial de Movimientos</Title>
+            
+            {movimientos.length > 0 && (
+                <Flex justify="flex-end" mb="md">
+                    <Button
+                        onClick={handleExportFinanzas}
+                        leftSection={<IconFileSpreadsheet size={16} />}
+                        variant="outline"
+                        color="green" // Cambié el color a verde para que se vea más como Excel
+                    >
+                        Exportar a Excel
+                    </Button>
+                </Flex>
+            )}
+
             {movimientos.length === 0 ? (
                 <Text ta="center" c="dimmed" mt="xl">
                     No tienes movimientos registrados. ¡Empieza a añadir algunos!

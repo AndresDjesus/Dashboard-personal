@@ -1,4 +1,6 @@
-import { notifications } from '@mantine/notifications'; // Importar para usar notificaciones
+import { notifications } from '@mantine/notifications'; 
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 // Función para obtener el número de la semana del año
 export const getWeekNumber = (date) => {
@@ -255,6 +257,64 @@ export const exportDataToCsv = (data, filename, headers = null) => {
         notifications.show({
             title: 'Error al Exportar',
             message: `No se pudieron exportar los datos de "${filename}" a CSV.`,
+            color: 'red',
+        });
+    }
+};
+
+/**
+ * Exporta datos a un archivo XLSX con formato y tabla.
+ * @param {Array<Object>} data El array de objetos a exportar.
+ * @param {string} filename El nombre del archivo sin extensión.
+ * @param {string} sheetName El nombre de la hoja en el archivo de Excel.
+ */
+export const exportToXlsx = (data, filename, sheetName = 'Datos') => {
+    try {
+        if (!data || data.length === 0) {
+            notifications.show({
+                title: 'No hay datos para exportar',
+                message: 'No se encontraron datos para exportar.',
+                color: 'orange',
+            });
+            return;
+        }
+
+        // Crear un nuevo libro de trabajo
+        const wb = XLSX.utils.book_new();
+
+        // Convertir el array de objetos a una hoja de trabajo (worksheet)
+        const ws = XLSX.utils.json_to_sheet(data);
+
+        // Opcional: ajustar el ancho de las columnas
+        const colWidths = Object.keys(data[0]).map(key => ({
+            wch: Math.max(10, key.length + 2, 
+                ...data.map(item => String(item[key]).length + 2)
+            )
+        }));
+        ws['!cols'] = colWidths;
+
+        // Añadir la hoja de trabajo al libro
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+        // Convertir el libro a un objeto binario
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+        // Usar file-saver para descargar el archivo
+        const finalFilename = `${filename}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        saveAs(blob, finalFilename);
+
+        notifications.show({
+            title: 'Datos Exportados',
+            message: `Tus datos han sido exportados con éxito como archivo de Excel.`,
+            color: 'green',
+        });
+
+    } catch (error) {
+        console.error("Error al exportar a XLSX:", error);
+        notifications.show({
+            title: 'Error al Exportar',
+            message: 'No se pudieron exportar los datos a Excel.',
             color: 'red',
         });
     }
