@@ -1,43 +1,46 @@
 // src/components/EstadoAnimoSection.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Title, Text, Group, Rating, Button, Center, Box, useMantineTheme, rem } from '@mantine/core';
-import { IconChartLine, IconMoodHappy } from '@tabler/icons-react'; // Añadido IconMoodHappy para el título
-import { notifications } from '@mantine/notifications'; // Importar notificaciones
+// Importa el nuevo icono para el botón de exportar
+import { IconChartLine, IconMoodHappy, IconFileSpreadsheet } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 
 import {
     cargarDatos,
     guardarDatos,
-    getTodayFormattedDate, // <-- ¡Asegúrate de que esta función exista en localStorageUtils!
+    getTodayFormattedDate,
     getStartOfWeek,
-    getDiasSemanaNombres
+    getDiasSemanaNombres,
+    exportToXlsxWithStyle // <-- ¡La nueva función!
 } from '../utils/localStorageUtils';
 
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 
-// Registra los componentes de Chart.js necesarios
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTitle, Tooltip, Legend);
 
-// Definición de emojis para el Rating
 const moodEmojis = [
-    '😞', // 1: Muy Mal
-    '😔', // 2: Mal
-    '😐', // 3: Neutral
-    '😊', // 4: Bien
-    '😄'  // 5: Excelente
+    '😞',
+    '😔',
+    '😐',
+    '😊',
+    '😄'
 ];
+const moodLabels = {
+    1: 'Muy Mal',
+    2: 'Mal',
+    3: 'Neutral',
+    4: 'Bien',
+    5: 'Excelente'
+};
 
 function EstadoAnimoSection() {
     const theme = useMantineTheme();
-
     const [estadoAnimoSemana, setEstadoAnimoSemana] = useState(() => {
         const data = cargarDatos('estadoAnimoSemana', { weekStartDate: '', dailyMoods: {} });
         const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
-
-        // Reinicia si la semana almacenada no es la semana actual
         if (data.weekStartDate !== currentWeekStartFormatted) {
             console.log('¡Nueva semana detectada! Reiniciando estados de ánimo.');
-            // Muestra una notificación si se reinicia la semana
             notifications.show({
                 title: 'Reinicio Semanal de Ánimo',
                 message: 'Una nueva semana ha comenzado. ¡Registra tu estado de ánimo diario!',
@@ -50,23 +53,18 @@ function EstadoAnimoSection() {
         return data;
     });
 
-    const diaActualFormatted = getTodayFormattedDate(); // Obtiene la fecha actual en YYYY-MM-DD
+    const diaActualFormatted = getTodayFormattedDate();
     const [rating, setRating] = useState(estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0);
-
     const chartRef = useRef(null);
 
-    // Guarda el estado de ánimo en localStorage cada vez que cambia
     useEffect(() => {
         guardarDatos('estadoAnimoSemana', estadoAnimoSemana);
     }, [estadoAnimoSemana]);
 
-    // Efecto para actualizar el rating actual si el día cambia o se carga el componente
     useEffect(() => {
         setRating(estadoAnimoSemana.dailyMoods[diaActualFormatted] || 0);
     }, [diaActualFormatted, estadoAnimoSemana.dailyMoods]);
 
-
-    // Efecto para reiniciar los estados de ánimo si la semana cambia
     useEffect(() => {
         const checkWeekChange = () => {
             const currentWeekStartFormatted = getStartOfWeek().toISOString().split('T')[0];
@@ -74,14 +72,10 @@ function EstadoAnimoSection() {
                 setEstadoAnimoSemana({ weekStartDate: currentWeekStartFormatted, dailyMoods: {} });
             }
         };
-
         checkWeekChange();
-        // Comprobar cada hora (60 minutos * 60 segundos * 1000 milisegundos)
         const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000);
-
         return () => clearInterval(intervalId);
     }, [estadoAnimoSemana.weekStartDate]);
-
 
     const handleSaveMood = () => {
         if (rating === 0) {
@@ -105,14 +99,13 @@ function EstadoAnimoSection() {
     };
 
     // Función auxiliar para obtener las fechas de la semana actual (Lunes a Domingo)
-    // Retorna un array de strings 'YYYY-MM-DD'
     const getFechasSemanaActual = () => {
-        const startOfWeek = getStartOfWeek(); // Esto DEBE retornar un objeto Date
+        const startOfWeek = getStartOfWeek();
         const dates = [];
         for (let i = 0; i < 7; i++) {
-            const date = new Date(startOfWeek); // Clonar la fecha para no modificar el original
-            date.setDate(startOfWeek.getDate() + i); // Añadir i días
-            dates.push(date.toISOString().split('T')[0]); // Formato YYYY-MM-DD
+            const date = new Date(startOfWeek);
+            date.setDate(startOfWeek.getDate() + i);
+            dates.push(date.toISOString().split('T')[0]);
         }
         return dates;
     };
@@ -121,15 +114,11 @@ function EstadoAnimoSection() {
     const diasSemanaNombres = getDiasSemanaNombres();
 
     const chartData = {
-        labels: diasSemanaNombres, // Etiquetas X: Nombres de los días de la semana
+        labels: diasSemanaNombres,
         datasets: [
             {
                 label: 'Estado de Ánimo',
-                // Data: mapea las fechas generadas a los datos guardados
-                data: fechasSemana.map(date => {
-                    const value = estadoAnimoSemana.dailyMoods[date] || 0;
-                    return value;
-                }),
+                data: fechasSemana.map(date => estadoAnimoSemana.dailyMoods[date] || 0),
                 borderColor: theme.colors.grape[6],
                 backgroundColor: theme.colors.grape[3],
                 tension: 0.4,
@@ -143,23 +132,15 @@ function EstadoAnimoSection() {
 
     const chartOptions = {
         responsive: true,
-        maintainAspectRatio: false, // Permite que el gráfico se ajuste al contenedor
+        maintainAspectRatio: false,
         plugins: {
-            legend: {
-                display: false,
-            },
+            legend: { display: false },
             tooltip: {
                 callbacks: {
                     label: function(context) {
                         const value = context.raw;
-                        const moodLabels = {
-                            1: '😞 Muy Mal',
-                            2: '😔 Mal',
-                            3: '😐 Neutral',
-                            4: '😊 Bien',
-                            5: '😄 Excelente'
-                        };
-                        return `Estado de Ánimo: ${moodLabels[value] || 'No registrado'}`;
+                        const moodText = moodLabels[value] || 'No registrado';
+                        return `Estado de Ánimo: ${moodText} (${value || 0}/5)`;
                     }
                 }
             }
@@ -171,35 +152,36 @@ function EstadoAnimoSection() {
                 ticks: {
                     stepSize: 1,
                     callback: function(value) {
-                        const moodLabels = {
-                            0: '', // Para el 0 si no hay registro
-                            1: '😞',
-                            2: '😔',
-                            3: '😐',
-                            4: '😊',
-                            5: '😄'
-                        };
-                        return moodLabels[value] || '';
+                        return moodEmojis[value - 1] || '';
                     },
-                    font: {
-                        size: 16
-                    }
+                    font: { size: 16 }
                 },
-                grid: {
-                    color: theme.colors.dark[4],
-                },
+                grid: { color: theme.colors.dark[4] },
             },
             x: {
-                grid: {
-                    color: theme.colors.dark[4],
-                },
-                ticks: {
-                    font: {
-                        size: 12
-                    }
-                }
+                grid: { color: theme.colors.dark[4] },
+                ticks: { font: { size: 12 } },
             },
         },
+    };
+
+    // --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL ---
+    const handleExportEstadoAnimo = () => {
+        const dataForExport = fechasSemana.map((date, index) => {
+            const moodValue = estadoAnimoSemana.dailyMoods[date] || 0;
+            const moodText = moodLabels[moodValue] || 'No registrado';
+            return {
+                'Día de la Semana': diasSemanaNombres[index],
+                'Fecha': date,
+                'Estado de Ánimo': moodText,
+                'Calificación': moodValue
+            };
+        });
+
+        const sheetName = 'Estado de Ánimo';
+        const fileName = `estado_animo_${estadoAnimoSemana.weekStartDate}`;
+        
+        exportToXlsxWithStyle(dataForExport, fileName, sheetName);
     };
 
     return (
@@ -208,22 +190,32 @@ function EstadoAnimoSection() {
                 <IconChartLine size={28} />
                 Mi Estado de Ánimo Semanal
             </Title>
-
             <Center mb="md">
                 <Text size="lg" fw={500} mr="sm">¿Cómo te sientes hoy?</Text>
                 <Rating
                     value={rating}
                     onChange={setRating}
                     count={5}
-                    renderStar={(state) => {
-                        return moodEmojis[state.value - 1];
-                    }}
+                    renderStar={(state) => moodEmojis[state.value - 1]}
                 />
             </Center>
             <Center mb="lg">
-                <Button onClick={handleSaveMood} disabled={rating === 0} variant="filled" color="grape">
-                    Registrar Ánimo
-                </Button>
+                <Group>
+                    <Button onClick={handleSaveMood} disabled={rating === 0} variant="filled" color="grape" leftSection={<IconMoodHappy size={16} />}>
+                        Registrar Ánimo
+                    </Button>
+                    {/* --- NUEVO BOTÓN PARA EXPORTAR --- */}
+                    {Object.keys(estadoAnimoSemana.dailyMoods).length > 0 && (
+                        <Button
+                            onClick={handleExportEstadoAnimo}
+                            variant="outline"
+                            color="green"
+                            leftSection={<IconFileSpreadsheet size={16} />}
+                        >
+                            Exportar
+                        </Button>
+                    )}
+                </Group>
             </Center>
 
             <Text size="sm" c="dimmed" ta="center" mb="lg">

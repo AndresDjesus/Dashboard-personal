@@ -1,71 +1,62 @@
 // src/components/PerfilSection.jsx
-import React, { useState, useEffect } from 'react';
-import { Paper, Title, Text, Avatar, Group, Center, TextInput, Button, Stack, rem, ActionIcon, Flex } from '@mantine/core';
-import { IconUserCircle, IconEdit, IconCheck, IconX, IconLink } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications'; // Importar notificaciones
+import React, { useState, useEffect, useRef } from 'react';
+import { Paper, Title, Text, Avatar, Group, Center, TextInput, Button, Stack, rem, ActionIcon, Flex, Box } from '@mantine/core';
+import { IconUserCircle, IconEdit, IconCheck, IconX, IconLink, IconUpload } from '@tabler/icons-react'; // Agregamos IconUpload
+import { notifications } from '@mantine/notifications';
 
-// Importa las utilidades de localStorage
-import { cargarDatos, guardarDatos } from '../utils/localStorageUtils'; 
+import { cargarDatos, guardarDatos } from '../utils/localStorageUtils';
 
-// Función auxiliar para generar la URL de Dicebear
-// Esto nos asegura que siempre usamos la misma lógica para generar la URL predeterminada
 const generateDicebearUrl = (name) => {
     return `https://api.dicebear.com/8.x/lorelei/svg?seed=${name || 'default'}`;
 };
 
 function PerfilSection() {
-    // Carga el nombre del usuario desde localStorage o usa 'Tu Nombre' por defecto
     const [userName, setUserName] = useState(() => cargarDatos('userName', 'Tu Nombre'));
-    
-    // Primero, intenta cargar la URL del avatar guardada.
-    const initialSavedAvatarUrl = cargarDatos('avatarUrl', ''); // Carga como string vacío si no existe
-
-    // Luego, inicializa avatarUrl:
-    // Si hay una URL guardada, úsala.
-    // Si no, genera una URL de Dicebear basada en el 'userName' inicial.
+    const initialSavedAvatarUrl = cargarDatos('avatarUrl', '');
     const [avatarUrl, setAvatarUrl] = useState(() => {
-        if (initialSavedAvatarUrl) {
+        if (initialSavedAvatarUrl && initialSavedAvatarUrl.startsWith('data:')) {
+            // Si la URL guardada es una Data URL, la usamos
+            return initialSavedAvatarUrl;
+        } else if (initialSavedAvatarUrl) {
+            // Si es una URL externa, la usamos
             return initialSavedAvatarUrl;
         } else {
-            return generateDicebearUrl(userName); // Usa el userName cargado inicialmente
+            // Si no hay URL, generamos una de Dicebear
+            return generateDicebearUrl(userName);
         }
     });
+    
+    const [editingProfile, setEditingProfile] = useState(false);
+    const [tempUserName, setTempUserName] = useState(userName);
+    const [tempAvatarUrl, setTempAvatarUrl] = useState(initialSavedAvatarUrl);
+    const [uploadedImageFile, setUploadedImageFile] = useState(null); // Nuevo estado para el archivo subido
+    const fileInputRef = useRef(null); // Referencia para el input de archivo
 
-    const [editingProfile, setEditingProfile] = useState(false); 
-    const [tempUserName, setTempUserName] = useState(userName); 
-    const [tempAvatarUrl, setTempAvatarUrl] = useState(avatarUrl); // Inicializa con la URL que se determinó
-    const [avatarLoadError, setAvatarLoadError] = useState(false); // Estado para manejar errores de carga del avatar
-
-    // Guarda el nombre y la URL del avatar en localStorage cada vez que cambian
     useEffect(() => {
         guardarDatos('userName', userName);
         console.log("Nombre de usuario guardado en localStorage:", userName);
     }, [userName]);
 
     useEffect(() => {
-        guardarDatos('avatarUrl', avatarUrl);
-        console.log("URL de avatar guardada en localStorage:", avatarUrl);
+        // Guardamos solo si la URL no es temporal de Dicebear para evitar guardar un avatar genérico.
+        // Si no hay una URL personalizada, guardamos un string vacío.
+        const urlToSave = avatarUrl.startsWith('https://api.dicebear.com/') ? '' : avatarUrl;
+        guardarDatos('avatarUrl', urlToSave);
+        console.log("URL de avatar guardada en localStorage:", urlToSave);
     }, [avatarUrl]);
 
-    // Manejador para cuando el avatar falla al cargar
-    const handleAvatarError = () => {
-        if (!avatarLoadError) { // Evitar notificaciones duplicadas
-            setAvatarLoadError(true);
-            notifications.show({
-                title: 'Error al Cargar Avatar',
-                message: 'La URL del avatar proporcionada no pudo ser cargada. Se usará un avatar predeterminado.',
-                color: 'red',
-            });
-            // Opcional: Podrías revertir a Dicebear aquí si la URL externa falla
-            // setAvatarUrl(generateDicebearUrl(userName));
+    // Manejador para la selección de archivos
+    const handleImageUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                // `reader.result` es la Data URL
+                setUploadedImageFile(reader.result);
+            };
+            reader.readAsDataURL(file);
         }
     };
-
-    // Resetea el error de carga del avatar cuando la URL cambia
-    useEffect(() => {
-        setAvatarLoadError(false);
-    }, [avatarUrl]);
-
 
     const handleSaveProfile = () => {
         if (tempUserName.trim() === '') {
@@ -77,17 +68,21 @@ function PerfilSection() {
             return;
         }
 
-        setUserName(tempUserName); // Actualiza el nombre principal
+        setUserName(tempUserName);
 
         let newAvatarToSet;
-        if (tempAvatarUrl.trim() === '') {
-            // Si el usuario borra la URL, volvemos a una de Dicebear
+        if (uploadedImageFile) {
+            // Si se subió un archivo, usamos su Data URL
+            newAvatarToSet = uploadedImageFile;
+            setUploadedImageFile(null); // Reseteamos el estado para el próximo uso
+        } else if (tempAvatarUrl.trim() === '') {
+            // Si se borra la URL y no hay archivo, volvemos a Dicebear
             newAvatarToSet = generateDicebearUrl(tempUserName);
         } else {
-            // Si el usuario proporciona una URL, la usamos directamente
-            newAvatarToSet = tempAvatarUrl; 
+            // Si hay una URL en el campo, la usamos
+            newAvatarToSet = tempAvatarUrl;
         }
-        setAvatarUrl(newAvatarToSet); // Actualiza el estado principal del avatar
+        setAvatarUrl(newAvatarToSet);
 
         setEditingProfile(false);
         notifications.show({
@@ -98,8 +93,9 @@ function PerfilSection() {
     };
 
     const handleCancelEdit = () => {
-        setTempUserName(userName); 
-        setTempAvatarUrl(avatarUrl); // Asegúrate de que vuelve a la URL real del estado
+        setTempUserName(userName);
+        setTempAvatarUrl(avatarUrl);
+        setUploadedImageFile(null); // Reseteamos el archivo subido
         setEditingProfile(false);
         notifications.show({
             title: 'Edición Cancelada',
@@ -114,17 +110,19 @@ function PerfilSection() {
                 <IconUserCircle size={28} />
                 Mi Perfil
             </Title>
-
             <Center mb="md">
                 <Stack align="center" spacing="sm">
-                    <Avatar 
-                        size={rem(120)} 
-                        radius="100%" 
-                        src={avatarUrl} 
-                        // Muestra el icono de usuario si hay un error de carga
-                        onError={handleAvatarError} 
+                    <Avatar
+                        size={rem(120)}
+                        radius="100%"
+                        src={uploadedImageFile || tempAvatarUrl || avatarUrl} // Usa el archivo subido si existe, si no, la URL temporal o la URL principal
+                        onError={() => {
+                            if (!tempAvatarUrl.startsWith('data:')) {
+                                setTempAvatarUrl(generateDicebearUrl(tempUserName));
+                            }
+                        }}
                     >
-                        {avatarLoadError || !avatarUrl ? <IconUserCircle size={rem(80)} /> : null}
+                        {!uploadedImageFile && !tempAvatarUrl && !avatarUrl && <IconUserCircle size={rem(80)} />}
                     </Avatar>
                     
                     {editingProfile ? (
@@ -135,27 +133,41 @@ function PerfilSection() {
                                 onChange={(event) => setTempUserName(event.currentTarget.value)}
                                 placeholder="Ingresa tu nombre"
                                 size="md"
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        handleSaveProfile();
-                                    }
-                                }}
                                 w="100%"
                             />
                             <TextInput
                                 label="URL del Avatar (opcional):"
                                 icon={<IconLink size={18} />}
                                 value={tempAvatarUrl}
-                                onChange={(event) => setTempAvatarUrl(event.currentTarget.value)}
-                                placeholder="Pega la URL de tu imagen (ej. imgur.com/imagen.jpg). Déjalo vacío para usar un avatar automático."
-                                size="md"
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        handleSaveProfile();
-                                    }
+                                onChange={(event) => {
+                                    setTempAvatarUrl(event.currentTarget.value);
+                                    setUploadedImageFile(null); // Limpia el archivo subido si el usuario edita la URL
                                 }}
+                                placeholder="Pega la URL de tu imagen"
+                                size="md"
                                 w="100%"
                             />
+
+                            {/* --- CAMBIO AQUÍ: Nuevo botón y input de archivo --- */}
+                            <Box w="100%">
+                                <Button
+                                    fullWidth
+                                    variant="outline"
+                                    onClick={() => fileInputRef.current.click()}
+                                    leftSection={<IconUpload size={18} />}
+                                >
+                                    {uploadedImageFile ? 'Archivo seleccionado' : 'Subir foto desde el equipo'}
+                                </Button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleImageUpload}
+                                    style={{ display: 'none' }}
+                                    accept="image/png, image/jpeg, image/jpg"
+                                />
+                            </Box>
+                            {/* --- FIN DEL CAMBIO --- */}
+
                             <Group spacing="xs">
                                 <ActionIcon onClick={handleSaveProfile} variant="filled" color="green" size="lg" title="Guardar cambios">
                                     <IconCheck style={{ width: rem(20), height: rem(20) }} />
@@ -171,8 +183,8 @@ function PerfilSection() {
                                 {userName}
                             </Text>
                             <ActionIcon onClick={() => {
-                                setTempUserName(userName); 
-                                setTempAvatarUrl(avatarUrl); 
+                                setTempUserName(userName);
+                                setTempAvatarUrl(avatarUrl);
                                 setEditingProfile(true);
                             }} variant="subtle" color="gray" size="lg" title="Editar perfil">
                                 <IconEdit style={{ width: rem(20), height: rem(20) }} />

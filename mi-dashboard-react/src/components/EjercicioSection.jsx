@@ -3,35 +3,28 @@ import React, { useState, useEffect } from 'react';
 import { NumberInput, Button, Box, Paper, Title, Group, Text } from '@mantine/core';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
-import { notifications } from '@mantine/notifications'; // Importar para usar notificaciones
-import { IconBarbell } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+// Importa el nuevo icono para el botón de exportar
+import { IconBarbell, IconFileSpreadsheet } from '@tabler/icons-react';
 
-// Importamos getWeekNumber y cargar/guardarDatos desde tu localStorageUtils
-// OJO: NO importamos getDiaActualIndex aquí, usaremos new Date().getDay() directamente.
-import { cargarDatos, guardarDatos, getWeekNumber } from '../utils/localStorageUtils';
+// Importa las funciones de localStorageUtils, incluyendo la de exportar
+import { cargarDatos, guardarDatos, getWeekNumber, exportToXlsxWithStyle } from '../utils/localStorageUtils';
 
-// Definimos los labels de los días de la semana, que corresponden a new Date().getDay()
-// 0=Domingo, 1=Lunes, ..., 6=Sábado
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTitle, Tooltip, Legend);
+
 const labelsDiasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 function EjercicioSection() {
-    // Estado para las horas de ejercicio por día [Dom, Lun, Mar, Mié, Jue, Vie, Sáb]
     const [horasEjercicio, setHorasEjercicio] = useState(() => {
         const datosGuardados = cargarDatos('datosEjercicio', [0, 0, 0, 0, 0, 0, 0]);
         const ultimaActualizacion = cargarDatos('ultimaActualizacionEjercicio', null);
-        
         const hoy = new Date();
         const ultimoDiaGuardado = ultimaActualizacion ? new Date(ultimaActualizacion) : null;
-
         let datosIniciales = datosGuardados;
-
-        // Comprobación de cambio de semana/año
         if (ultimoDiaGuardado) {
             const esMismoAño = hoy.getFullYear() === ultimoDiaGuardado.getFullYear();
             const semanaHoy = getWeekNumber(hoy);
             const semanaUltimoGuardado = getWeekNumber(ultimoDiaGuardado);
-            
-            // Si hay cambio de año o cambio de semana, reiniciamos las horas de ejercicio
             if (!esMismoAño || semanaHoy !== semanaUltimoGuardado) {
                 console.log("Detectado cambio de semana/año, reiniciando horas de ejercicio.");
                 notifications.show({
@@ -44,35 +37,28 @@ function EjercicioSection() {
                 datosIniciales = [0, 0, 0, 0, 0, 0, 0];
             }
         }
-        // Aseguramos que los datos devueltos sean una copia limpia para evitar mutaciones accidentales
-        // por parte de Chart.js si el array se pasara directamente sin copiar.
         return JSON.parse(JSON.stringify(datosIniciales));
     });
 
-    // Estado para el input de horas de ejercicio
     const [inputHoras, setInputHoras] = useState(0);
 
-    // Efecto para inicializar el input de horas con el valor del día actual al cargar
     useEffect(() => {
-        const currentDayIndex = new Date().getDay(); // Obtiene el índice 0-6 (Domingo-Sábado)
+        const currentDayIndex = new Date().getDay();
         setInputHoras(horasEjercicio[currentDayIndex] || 0);
-    }, [horasEjercicio]); // Se ejecuta cuando horasEjercicio cambia (incluyendo la carga inicial)
+    }, [horasEjercicio]);
 
-    // EFECTO CLAVE: Guarda 'horasEjercicio' y 'ultimaActualizacionEjercicio' cada vez que horasEjercicio cambia
     useEffect(() => {
-        // Guardamos una copia limpia del array antes de enviarla al localStorage
         const dataToSave = JSON.parse(JSON.stringify(horasEjercicio));
         guardarDatos('datosEjercicio', dataToSave);
-        guardarDatos('ultimaActualizacionEjercicio', new Date().toISOString()); // Guarda la fecha y hora actual
+        guardarDatos('ultimaActualizacionEjercicio', new Date().toISOString());
         console.log("Horas de ejercicio guardadas en localStorage:", dataToSave);
     }, [horasEjercicio]);
 
-    // Datos para Chart.js
     const chartData = {
         labels: labelsDiasSemana,
         datasets: [{
             label: 'Horas de Ejercicio',
-            data: horasEjercicio, // Este array se pasa a Chart.js
+            data: horasEjercicio,
             backgroundColor: 'rgba(153, 102, 255, 0.6)',
             borderColor: 'rgba(153, 102, 255, 1)',
             borderWidth: 2,
@@ -85,7 +71,6 @@ function EjercicioSection() {
         }],
     };
 
-    // Opciones para Chart.js
     const chartOptions = {
         responsive: true,
         maintainAspectRatio: false,
@@ -97,7 +82,7 @@ function EjercicioSection() {
                     text: 'Horas'
                 },
                 ticks: {
-                    precision: 0 // Asegura que las etiquetas del eje Y sean números enteros
+                    precision: 0
                 }
             },
             x: {
@@ -126,20 +111,13 @@ function EjercicioSection() {
         }
     };
 
-    // Función para manejar el guardado de horas de ejercicio
     const handleSaveEjercicio = () => {
         const valorNumerico = parseFloat(inputHoras);
-
         if (!isNaN(valorNumerico) && valorNumerico >= 0) {
-            // Usamos new Date().getDay() para obtener el índice correcto del día (0=Dom, 1=Lun, etc.)
             const diaIndex = new Date().getDay();
-            
-            // Crea una copia *limpia* del array actual de horas
-            const nuevosDatosEjercicio = JSON.parse(JSON.stringify(horasEjercicio));
+            const nuevosDatosEjercicio = [...horasEjercicio];
             nuevosDatosEjercicio[diaIndex] = valorNumerico;
-            
-            setHorasEjercicio(nuevosDatosEjercicio); // Actualiza el estado
-            
+            setHorasEjercicio(nuevosDatosEjercicio);
             notifications.show({
                 title: 'Horas de Ejercicio Registradas',
                 message: `Has registrado ${valorNumerico} horas de ejercicio para hoy.`,
@@ -153,6 +131,24 @@ function EjercicioSection() {
                 color: 'red',
             });
         }
+    };
+
+    // --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL ---
+    const handleExportEjercicio = () => {
+        // Prepara los datos en el formato correcto para el excel
+        const dataForExport = labelsDiasSemana.map((dia, index) => ({
+            'Día de la Semana': dia,
+            'Horas de Ejercicio': horasEjercicio[index]
+        }));
+        
+        const sheetName = 'Horas de Ejercicio';
+        // Obtiene la fecha de inicio de la semana para el nombre del archivo
+        // Nota: new Date().getDay() devuelve 0 para el domingo, así que para que la semana empiece en lunes,
+        // tendrías que ajustar el índice. En este caso, lo mantendremos simple para reflejar el gráfico.
+        const weekStart = new Date(new Date().setDate(new Date().getDate() - new Date().getDay())).toISOString().split('T')[0];
+        const fileName = `horas_ejercicio_${weekStart}`;
+        
+        exportToXlsxWithStyle(dataForExport, fileName, sheetName);
     };
 
     return (
@@ -174,8 +170,17 @@ function EjercicioSection() {
                     onChange={setInputHoras}
                     sx={{ flexGrow: 1 }}
                 />
-                <Button onClick={handleSaveEjercicio} variant="filled" color="grape">
+                <Button onClick={handleSaveEjercicio} variant="filled" color="grape" leftSection={<IconBarbell size={16} />}>
                     Guardar
+                </Button>
+                {/* --- NUEVO BOTÓN PARA EXPORTAR --- */}
+                <Button
+                    onClick={handleExportEjercicio}
+                    variant="outline"
+                    color="green"
+                    leftSection={<IconFileSpreadsheet size={16} />}
+                >
+                    Exportar
                 </Button>
             </Group>
             <Text size="sm" c="dimmed" mt="xs" ta="center">

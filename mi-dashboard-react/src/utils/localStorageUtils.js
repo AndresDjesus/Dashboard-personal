@@ -319,3 +319,103 @@ export const exportToXlsx = (data, filename, sheetName = 'Datos') => {
         });
     }
 };
+
+/**
+ * Exporta datos a un archivo XLSX con formato de tabla simple y estilos.
+ * @param {Array<Object>} data El array de objetos a exportar.
+ * @param {string} filename El nombre del archivo sin extensión.
+ * @param {string} sheetName El nombre de la hoja en el archivo de Excel.
+ */
+export const exportToXlsxWithStyle = (data, filename, sheetName = 'Datos') => {
+    try {
+        if (!data || data.length === 0) {
+            notifications.show({
+                title: 'No hay datos para exportar',
+                message: 'No se encontraron datos para exportar.',
+                color: 'orange',
+            });
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        // Convertir el array de objetos a una hoja de trabajo
+        const ws = XLSX.utils.json_to_sheet(data, { 
+            header: Object.keys(data[0]) 
+        });
+
+        // Crear una tabla estructurada en Excel
+        const tableRange = XLSX.utils.decode_range(ws['!ref']);
+        const tableRef = XLSX.utils.encode_range(tableRange);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        
+        // --- Aplicar estilos (bordes y colores) ---
+        // Estilo para los encabezados
+        const headerStyle = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "4285F4" } }, // Azul de Google
+            border: {
+                top: { style: "thin" },
+                bottom: { style: "thin" },
+                left: { style: "thin" },
+                right: { style: "thin" }
+            }
+        };
+
+        // Estilo para el resto de las celdas
+        const cellStyle = {
+            border: {
+                top: { style: "thin" },
+                bottom: { style: "thin" },
+                left: { style: "thin" },
+                right: { style: "thin" }
+            }
+        };
+
+        // Recorrer las celdas para aplicar los estilos
+        for (let R = tableRange.s.r; R <= tableRange.e.r; ++R) {
+            for (let C = tableRange.s.c; C <= tableRange.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                if (!ws[cellAddress]) continue;
+
+                // Aplicar estilo de encabezado si es la primera fila
+                if (R === 0) {
+                    ws[cellAddress].s = headerStyle;
+                } else {
+                    ws[cellAddress].s = cellStyle;
+                }
+            }
+        }
+        
+        // Ajustar el ancho de las columnas
+        const colWidths = Object.keys(data[0]).map(key => ({
+            wch: Math.max(12, key.length, 
+                ...data.map(item => String(item[key]).length)
+            ) + 2
+        }));
+        ws['!cols'] = colWidths;
+
+        // Añadir la tabla a la hoja
+        ws['!autofilter'] = { ref: tableRef };
+
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+        const finalFilename = `${filename}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        saveAs(blob, finalFilename);
+
+        notifications.show({
+            title: 'Datos Exportados',
+            message: `Tus datos han sido exportados con éxito como archivo de Excel.`,
+            color: 'green',
+        });
+
+    } catch (error) {
+        console.error("Error al exportar a XLSX:", error);
+        notifications.show({
+            title: 'Error al Exportar',
+            message: 'No se pudieron exportar los datos a Excel.',
+            color: 'red',
+        });
+    }
+};

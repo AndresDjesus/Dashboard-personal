@@ -1,4 +1,4 @@
-
+// src/components/FinanzasSection.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Paper, Title, Text, Group, TextInput, Button, Select, ActionIcon,
@@ -18,8 +18,8 @@ import {
     getDiasSemanaNombres,
     getStartOfWeek,
     getTodayFormattedDate,
-    // Importa la nueva función para exportar a XLSX
-    exportToXlsx
+
+    exportToXlsxWithStyle
 } from '../utils/localStorageUtils'; // ¡Usamos tus funciones de localStorageUtils!
 
 function FinanzasSection() {
@@ -31,7 +31,6 @@ function FinanzasSection() {
 
     const [categoriasPresupuesto, setCategoriasPresupuesto] = useState([]);
 
-    // Efecto para cargar las categorías de presupuesto y escuchar cambios en localStorage
     useEffect(() => {
         const loadCategories = () => {
             const presupuestoItems = cargarDatos('presupuestoItems', []);
@@ -53,13 +52,11 @@ function FinanzasSection() {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
-    // Efecto para guardar los movimientos en localStorage cada vez que cambian
     useEffect(() => {
         guardarDatos('finanzasMovimientos', movimientos);
         console.log("Movimientos guardados en localStorage:", movimientos);
     }, [movimientos]);
 
-    // Función para añadir un nuevo movimiento
     const handleAddMovimiento = () => {
         if (!descripcion.trim()) {
             notifications.show({
@@ -98,7 +95,6 @@ function FinanzasSection() {
 
         setMovimientos(prevMovimientos => [...prevMovimientos, nuevoMovimiento]);
 
-        // Limpiar inputs
         setDescripcion('');
         setMonto('');
         setTipo('ingreso');
@@ -112,7 +108,6 @@ function FinanzasSection() {
         });
     };
 
-    // Función para eliminar un movimiento
     const handleDeleteMovimiento = (id) => {
         notifications.show({
             title: 'Confirmar Eliminación',
@@ -145,10 +140,11 @@ function FinanzasSection() {
     // --- FUNCIÓN ACTUALIZADA PARA EXPORTAR A XLSX ---
     const handleExportFinanzas = () => {
         const dataForExport = movimientos.map(({ id, ...rest }) => rest);
-        exportToXlsx(dataForExport, 'movimientos_financieros', 'Movimientos');
+        // ¡CAMBIA ESTA LÍNEA!
+        // Reemplaza 'exportToXlsx' por 'exportToXlsxWithStyle'
+        exportToXlsxWithStyle(dataForExport, 'movimientos_financieros', 'Movimientos');
     };
 
-    // Cálculo de balances
     const balanceTotal = movimientos.reduce((acc, mov) => {
         return mov.tipo === 'ingreso' ? acc + mov.monto : acc - mov.monto;
     }, 0);
@@ -156,7 +152,6 @@ function FinanzasSection() {
     const totalIngresos = movimientos.filter(mov => mov.tipo === 'ingreso').reduce((sum, mov) => sum + mov.monto, 0);
     const totalGastos = movimientos.filter(mov => mov.tipo === 'gasto').reduce((sum, mov) => sum + mov.monto, 0);
 
-    // Preparación de datos para el gráfico semanal
     const getWeekRange = (startOfWeekDate) => {
         const days = [];
         const currentDay = new Date(startOfWeekDate);
@@ -188,7 +183,6 @@ function FinanzasSection() {
         };
     });
 
-    // Filas para la tabla de historial de movimientos
     const rows = movimientos
         .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
         .map((movimiento) => (
@@ -313,7 +307,7 @@ function FinanzasSection() {
                         onClick={handleExportFinanzas}
                         leftSection={<IconFileSpreadsheet size={16} />}
                         variant="outline"
-                        color="green" // Cambié el color a verde para que se vea más como Excel
+                        color="green"
                     >
                         Exportar a Excel
                     </Button>

@@ -1,43 +1,40 @@
-// src/components/PresupuestoSection.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Paper, Title, Text, Group, TextInput, Button, Select, ActionIcon,
     Table, Badge, Flex, Progress, rem, Box
 } from '@mantine/core';
-import { IconPigMoney, IconTrash, IconPlus, IconMoneybag } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications'; // Importar notificaciones
-import { modals } from '@mantine/modals';           // Importar modales
+import { IconPigMoney, IconTrash, IconPlus, IconMoneybag, IconFileSpreadsheet } from '@tabler/icons-react'; // ¡Importa el nuevo icono!
+import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-import { cargarDatos, guardarDatos } from '../utils/localStorageUtils';
+// ¡Importa la nueva función para exportar a XLSX!
+import { cargarDatos, guardarDatos, exportToXlsxWithStyle } from '../utils/localStorageUtils';
 
 // Colores para el gráfico Presupuesto vs. Gastos
-const BUDGET_VS_SPENT_COLORS = ['#4CAF50', '#FF5722', '#F44336']; // Verde (Restante), Naranja (Gastado), Rojo (Sobre-Gasto)
+const BUDGET_VS_SPENT_COLORS = ['#4CAF50', '#FF5722', '#F44336'];
 
-// Función personalizada para la etiqueta del gráfico (lo que se muestra dentro de la porción)
+// Función personalizada para la etiqueta del gráfico (sin cambios)
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, name, percent }) => {
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
     const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
-
-    // No mostrar la etiqueta si el valor es 0 o si la porción es demasiado pequeña
     if (value === 0 || percent < 0.05) return null;
-
     return (
         <text
             x={x}
             y={y}
-            fill="white" // Color del texto de la etiqueta
+            fill="white"
             textAnchor={x > cx ? 'start' : 'end'}
             dominantBaseline="central"
             style={{ fontSize: '12px', fontWeight: 'bold' }}
         >
-            {`${name.split(' ')[0]}: ${(percent * 100).toFixed(0)}%`} {/* Muestra solo la primera palabra y porcentaje */}
+            {`${name.split(' ')[0]}: ${(percent * 100).toFixed(0)}%`}
         </text>
     );
 };
 
-// Función personalizada para el tooltip del gráfico de Presupuesto vs Gastos
+// Función personalizada para el tooltip del gráfico de Presupuesto vs Gastos (sin cambios)
 const renderBudgetSpentTooltipContent = ({ active, payload }) => {
     if (active && payload && payload.length) {
         const data = payload[0].payload;
@@ -51,56 +48,45 @@ const renderBudgetSpentTooltipContent = ({ active, payload }) => {
     return null;
 };
 
-
 function PresupuestoSection() {
     const [presupuestoItems, setPresupuestoItems] = useState(() => cargarDatos('presupuestoItems', []));
     const [categoria, setCategoria] = useState('');
     const [montoPresupuestado, setMontoPresupuestado] = useState('');
-
-    // Estado para forzar la re-renderización cuando cambian los datos de finanzas
     const [finanzasChanged, setFinanzasChanged] = useState(0);
 
-    // Listener para cambios en localStorage (ej. desde la sección de Finanzas)
     useEffect(() => {
         const handleStorageChange = (event) => {
             if (event.key === 'finanzasMovimientos' || event.key === 'presupuestoItems') {
-                setFinanzasChanged(prev => prev + 1); // Incrementa para forzar re-renderizado
+                setFinanzasChanged(prev => prev + 1);
             }
         };
-
         window.addEventListener('storage', handleStorageChange);
         return () => {
             window.removeEventListener('storage', handleStorageChange);
         };
     }, []);
 
-    // Guarda los ítems de presupuesto en localStorage cada vez que cambian
     useEffect(() => {
         guardarDatos('presupuestoItems', presupuestoItems);
-        // También fuerza un update para que los cálculos se refresquen inmediatamente
         setFinanzasChanged(prev => prev + 1);
     }, [presupuestoItems]);
 
-    // Usar useCallback para memoizar la función y evitar recálculos innecesarios
     const calcularGastosActuales = useCallback(() => {
         const todosLosMovimientos = cargarDatos('finanzasMovimientos', []);
         const gastosPorCategoria = {};
-
         todosLosMovimientos.forEach(mov => {
             if (mov.tipo === 'gasto' && mov.categoria) {
                 gastosPorCategoria[mov.categoria] = (gastosPorCategoria[mov.categoria] || 0) + mov.monto;
             }
         });
         return gastosPorCategoria;
-    }, [finanzasChanged]); // Depende del contador para re-calcular cuando finanzas cambian
+    }, [finanzasChanged]);
 
     const gastosActuales = calcularGastosActuales();
 
-    // Cálculos para el gráfico global
     const totalPresupuestado = presupuestoItems.reduce((sum, item) => sum + item.montoPresupuestado, 0);
     
     const totalGastadoEnCategorias = Object.keys(gastosActuales).reduce((sum, categoria) => {
-        // Solo suma los gastos si la categoría está en la lista de presupuestos
         if (presupuestoItems.some(item => item.categoria === categoria)) {
             return sum + gastosActuales[categoria];
         }
@@ -111,30 +97,22 @@ function PresupuestoSection() {
 
     const pieChartBudgetSpentData = [];
 
-    // Lógica para poblar el gráfico
     if (totalPresupuestado > 0 || totalGastadoEnCategorias > 0) {
         if (restanteDelPresupuesto > 0) {
             pieChartBudgetSpentData.push({ name: 'Presupuesto Restante', value: restanteDelPresupuesto });
         }
-        
-        // Si el gasto es mayor que el presupuesto, mostramos el sobre-gasto
         if (totalGastadoEnCategorias > totalPresupuestado) {
             pieChartBudgetSpentData.push({ name: 'Sobre-Gasto', value: totalGastadoEnCategorias - totalPresupuestado });
         } 
-        
-        // Siempre mostramos lo gastado si es positivo
         if (totalGastadoEnCategorias > 0 && totalGastadoEnCategorias <= totalPresupuestado) {
             pieChartBudgetSpentData.push({ name: 'Gastado', value: totalGastadoEnCategorias });
         } else if (totalGastadoEnCategorias > 0 && totalPresupuestado === 0) {
-            // Caso especial: hay gastos pero no hay presupuesto definido
             pieChartBudgetSpentData.push({ name: 'Gastado (sin presupuesto)', value: totalGastadoEnCategorias });
         }
     }
 
-
     const handleAddPresupuestoItem = () => {
         const parsedMonto = parseFloat(montoPresupuestado);
-
         if (!categoria.trim() || isNaN(parsedMonto) || parsedMonto <= 0) {
             notifications.show({
                 title: 'Error al Añadir',
@@ -143,8 +121,6 @@ function PresupuestoSection() {
             });
             return;
         }
-
-        // Evitar categorías duplicadas
         if (presupuestoItems.some(item => item.categoria.toLowerCase() === categoria.trim().toLowerCase())) {
             notifications.show({
                 title: 'Error de Duplicado',
@@ -175,9 +151,7 @@ function PresupuestoSection() {
             title: 'Confirmar Eliminación',
             children: (
                 <Text size="sm">
-                    ¿Estás seguro de que quieres eliminar este ítem del presupuesto?
-                    Los gastos asociados a esta categoría en la sección de Finanzas
-                    **no serán eliminados**, solo dejarán de ser contabilizados en este presupuesto.
+                    ¿Estás seguro de que quieres eliminar este ítem del presupuesto? Los gastos asociados a esta categoría en la sección de Finanzas **no serán eliminados**, solo dejarán de ser contabilizados en este presupuesto.
                 </Text>
             ),
             labels: { confirm: 'Sí, eliminar', cancel: 'No, cancelar' },
@@ -198,11 +172,25 @@ function PresupuestoSection() {
         });
     };
 
+    // --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL ---
+    const handleExportPresupuesto = () => {
+        const dataForExport = presupuestoItems.map(item => {
+            const gastoReal = gastosActuales[item.categoria] || 0;
+            const restante = item.montoPresupuestado - gastoReal;
+            return {
+                Categoría: item.categoria,
+                Presupuestado: `$${item.montoPresupuestado.toFixed(2)}`,
+                Gastado: `$${gastoReal.toFixed(2)}`,
+                Restante: `$${restante.toFixed(2)}`
+            };
+        });
+        exportToXlsxWithStyle(dataForExport, 'presupuesto_por_categoria', 'Presupuesto');
+    };
+
     const rows = presupuestoItems.map((item) => {
         const gastoReal = gastosActuales[item.categoria] || 0;
         const restante = item.montoPresupuestado - gastoReal;
         const porcentajeUsado = item.montoPresupuestado > 0 ? (gastoReal / item.montoPresupuestado) * 100 : 0;
-
         let progressColor = 'green';
         if (porcentajeUsado >= 75 && porcentajeUsado < 100) {
             progressColor = 'orange';
@@ -243,7 +231,6 @@ function PresupuestoSection() {
                 <IconMoneybag size={28} />
                 Mi Presupuesto
             </Title>
-
             <Flex direction={{ base: 'column', sm: 'row' }} gap="md" mb="xl" align="flex-end">
                 <TextInput
                     label="Categoría"
@@ -270,8 +257,6 @@ function PresupuestoSection() {
                     Añadir
                 </Button>
             </Flex>
-
-            {/* ÚNICO Gráfico de Presupuesto Total vs. Gastos Totales */}
             <Title order={3} ta="center" mb="md">Resumen Global del Presupuesto</Title>
             {pieChartBudgetSpentData.length === 0 ? (
                 <Text ta="center" c="dimmed" mb="xl">
@@ -315,6 +300,21 @@ function PresupuestoSection() {
             )}
 
             <Title order={3} ta="center" mb="md">Detalle de Presupuesto por Categoría</Title>
+            
+            {/* --- NUEVO BOTÓN PARA EXPORTAR --- */}
+            {presupuestoItems.length > 0 && (
+                <Flex justify="flex-end" mb="md">
+                    <Button
+                        onClick={handleExportPresupuesto}
+                        leftSection={<IconFileSpreadsheet size={16} />}
+                        variant="outline"
+                        color="green"
+                    >
+                        Exportar a Excel
+                    </Button>
+                </Flex>
+            )}
+
             {presupuestoItems.length === 0 ? (
                 <Text ta="center" c="dimmed" mt="xl">
                     No tienes ítems de presupuesto. ¡Empieza a planificar tus finanzas!

@@ -3,103 +3,70 @@ import React, { useState, useEffect } from 'react';
 import {
     Paper, Title, Text, TextInput, Button, Group, ActionIcon, rem, Box, Badge, Table, Checkbox,
 } from '@mantine/core';
-import { IconChecklist, IconTrash } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications'; // Importar notificaciones
-import { modals } from '@mantine/modals'; // Importar modales
+// Importa el nuevo icono para exportar
+import { IconChecklist, IconTrash, IconFileSpreadsheet } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 
-// Importa las utilidades de localStorage actualizadas
+// Importa la función de exportación de las utilidades
 import {
     cargarDatos,
     guardarDatos,
     getStartOfWeek,
     getDiasSemanaNombres,
-    getDiaActualIndex
+    getDiaActualIndex,
+    exportToXlsxWithStyle // <-- ¡La nueva función!
 } from '../utils/localStorageUtils';
 
 function HabitosSection() {
-    // -----------------------------------------------------------
-    // 1. Estado para la lista de hábitos (persistente)
-    //    habitos: [{ id: '...', text: '...' }, ...]
-    // -----------------------------------------------------------
     const [habitos, setHabitos] = useState(() => {
-        return cargarDatos('habitosLista', []); // Nueva clave para evitar conflictos
+        return cargarDatos('habitosLista', []);
     });
-
-    // -----------------------------------------------------------
-    // 2. Estado para el texto del nuevo hábito
-    // -----------------------------------------------------------
     const [nuevoHabitoTexto, setNuevoHabitoTexto] = useState('');
-
-    // -----------------------------------------------------------
-    // 3. Estado para el seguimiento de hábitos completados (persistente y reinicio semanal)
-    //    habitosCompletados: { weekStartDate: 'YYYY-MM-DD', completions: { 'habitoId': { 'Lun': true, 'Mar': false, ... } } }
-    // -----------------------------------------------------------
     const [habitosCompletados, setHabitosCompletados] = useState(() => {
         const datosCargados = cargarDatos('habitosCompletadosSemana', { weekStartDate: '', completions: {} });
-        const startOfCurrentWeek = getStartOfWeek().toISOString().split('T')[0]; // Formato YYYY-MM-DD
-
-        // Reiniciar si la semana almacenada no coincide con la actual
+        const startOfCurrentWeek = getStartOfWeek().toISOString().split('T')[0];
         if (datosCargados.weekStartDate !== startOfCurrentWeek) {
             console.log("Nueva semana detectada para hábitos, reiniciando progreso.");
             return { weekStartDate: startOfCurrentWeek, completions: {} };
         }
-        return datosCargados; // Si es la misma semana, cargar los datos existentes
+        return datosCargados;
     });
 
-    // -----------------------------------------------------------
-    // 4. Efecto para guardar la lista de hábitos en localStorage
-    // -----------------------------------------------------------
     useEffect(() => {
         guardarDatos('habitosLista', habitos);
         console.log("Lista de hábitos guardada:", habitos);
-    }, [habitos]); // Se ejecuta cada vez que la lista de hábitos cambia
+    }, [habitos]);
 
-    // -----------------------------------------------------------
-    // 5. Efecto para guardar el estado de completado de hábitos en localStorage
-    // -----------------------------------------------------------
     useEffect(() => {
         guardarDatos('habitosCompletadosSemana', habitosCompletados);
         console.log("Estado de hábitos completados guardado:", habitosCompletados);
-    }, [habitosCompletados]); // Se ejecuta cada vez que el estado de completado cambia
+    }, [habitosCompletados]);
 
-    // -----------------------------------------------------------
-    // 6. Efecto para verificar y reiniciar semanalmente (corre cada hora)
-    // -----------------------------------------------------------
     useEffect(() => {
         const checkWeekChange = () => {
             const startOfCurrentWeek = getStartOfWeek().toISOString().split('T')[0];
-
             setHabitosCompletados(prev => {
-                // Si la semana actual es diferente a la semana almacenada, reiniciar
                 if (prev.weekStartDate !== startOfCurrentWeek) {
                     notifications.show({
                         title: 'Reinicio Semanal de Hábitos',
                         message: '¡Una nueva semana ha comenzado! Tu progreso de hábitos ha sido reiniciado.',
                         color: 'blue',
-                        icon: <IconCalendar size={18} />,
+                        icon: <IconChecklist size={18} />,
                         autoClose: 5000,
                     });
                     return { weekStartDate: startOfCurrentWeek, completions: {} };
                 }
-                return prev; // Si es la misma semana, no hacer nada
+                return prev;
             });
         };
+        checkWeekChange();
+        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000);
+        return () => clearInterval(intervalId);
+    }, []);
 
-        checkWeekChange(); // Ejecutar al montar para asegurar que el estado sea el correcto
-        const intervalId = setInterval(checkWeekChange, 60 * 60 * 1000); // Revisa cada hora
-
-        return () => clearInterval(intervalId); // Limpiar el intervalo al desmontar
-    }, []); // Dependencia vacía: se ejecuta solo una vez al montar
-
-    // -----------------------------------------------------------
-    // 7. Utilidades de días de la semana
-    // -----------------------------------------------------------
-    const diasSemanaNombres = getDiasSemanaNombres(); // ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-    const diaActualIndex = getDiaActualIndex(); // Índice numérico del día actual (0 para Lun, 6 para Dom)
-
-    // -----------------------------------------------------------
-    // 8. Handlers de Eventos
-    // -----------------------------------------------------------
+    const diasSemanaNombres = getDiasSemanaNombres();
+    const diaActualIndex = getDiaActualIndex();
 
     const handleAddHabito = () => {
         if (nuevoHabitoTexto.trim() === '') {
@@ -110,13 +77,12 @@ function HabitosSection() {
             });
             return;
         }
-        // Crear un nuevo objeto de hábito
         const nuevoHabito = {
-            id: Date.now().toString(), // ID único basado en el timestamp
+            id: Date.now().toString(),
             text: nuevoHabitoTexto.trim(),
         };
-        setHabitos([...habitos, nuevoHabito]); // Añadir el nuevo hábito a la lista
-        setNuevoHabitoTexto(''); // Limpiar el input
+        setHabitos([...habitos, nuevoHabito]);
+        setNuevoHabitoTexto('');
         notifications.show({
             title: 'Hábito Añadido',
             message: `"${nuevoHabito.text}" ha sido añadido a tu lista de hábitos.`,
@@ -140,13 +106,10 @@ function HabitosSection() {
                 color: 'gray',
             }),
             onConfirm: () => {
-                // Eliminar de la lista de hábitos
                 setHabitos(prevHabitos => prevHabitos.filter(habito => habito.id !== idAEliminar));
-
-                // Eliminar también su progreso de completado
                 setHabitosCompletados(prev => {
-                    const newCompletions = JSON.parse(JSON.stringify(prev.completions)); // Copia profunda
-                    delete newCompletions[idAEliminar]; // Eliminar la entrada del hábito
+                    const newCompletions = JSON.parse(JSON.stringify(prev.completions));
+                    delete newCompletions[idAEliminar];
                     return { ...prev, completions: newCompletions };
                 });
                 notifications.show({
@@ -159,55 +122,62 @@ function HabitosSection() {
     };
 
     const toggleHabitoCompleted = (habitoId, diaIndex) => {
-        const diaNombre = diasSemanaNombres[diaIndex]; // Obtener el nombre del día para el índice
+        const diaNombre = diasSemanaNombres[diaIndex];
         setHabitosCompletados(prev => {
-            // Clonar profundamente para asegurar inmutabilidad y que React detecte el cambio
             const newCompletions = JSON.parse(JSON.stringify(prev.completions));
-
-            // Asegurarse de que el objeto del hábito exista
             if (!newCompletions[habitoId]) {
                 newCompletions[habitoId] = {};
             }
-            // Invertir el estado de completado para el día específico
             newCompletions[habitoId][diaNombre] = !newCompletions[habitoId][diaNombre];
-
-            // Feedback de notificación
             const habitoText = habitos.find(h => h.id === habitoId)?.text;
             notifications.show({
                 title: 'Progreso de Hábito',
                 message: `"${habitoText}" marcado como ${newCompletions[habitoId][diaNombre] ? 'completado' : 'pendiente'} para el ${diaNombre}.`,
                 color: newCompletions[habitoId][diaNombre] ? 'blue' : 'gray',
             });
-
             return { ...prev, completions: newCompletions };
         });
     };
 
-    // -----------------------------------------------------------
-    // 9. Cálculos para las insignias de progreso
-    // -----------------------------------------------------------
+    // --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL ---
+    const handleExportHabitos = () => {
+        // Preparamos los datos para la exportación
+        const dataForExport = habitos.map(habito => {
+            const completions = habitosCompletados.completions[habito.id] || {};
+            // Creamos un objeto plano con la información
+            const habitoData = {
+                'Hábito': habito.text
+            };
+            diasSemanaNombres.forEach(dia => {
+                habitoData[dia] = completions[dia] ? '✅ Completado' : '❌ Pendiente';
+            });
+            return habitoData;
+        });
+
+        const sheetName = 'Hábitos';
+        const fileName = `seguimiento_habitos_${habitosCompletados.weekStartDate}`;
+        
+        exportToXlsxWithStyle(dataForExport, fileName, sheetName);
+    };
+
     const habitosCompletadosHoyCount = habitos.filter(habito =>
-        habitosCompletados.completions[habito.id]?.[diasSemanaNombres[diaActualIndex]] // Usar el nombre del día actual
+        habitosCompletados.completions[habito.id]?.[diasSemanaNombres[diaActualIndex]]
     ).length;
     const habitosPendientesHoyCount = habitos.length - habitosCompletadosHoyCount;
 
-    // -----------------------------------------------------------
-    // 10. Renderizado del Componente
-    // -----------------------------------------------------------
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <IconChecklist size={28} />
                 Mis Hábitos Semanales
             </Title>
-
             <Group mb="md" grow>
                 <TextInput
                     label="Nuevo Hábito:"
                     placeholder="Ej. Beber 2L de agua"
                     value={nuevoHabitoTexto}
                     onChange={(event) => setNuevoHabitoTexto(event.currentTarget.value)}
-                    onKeyPress={(event) => { // onKeyPress es preferible para 'Enter'
+                    onKeyPress={(event) => {
                         if (event.key === 'Enter') {
                             handleAddHabito();
                         }
@@ -217,7 +187,6 @@ function HabitosSection() {
                     Añadir Hábito
                 </Button>
             </Group>
-
             <Group position="apart" mb="md">
                 <Badge color="green" size="lg" variant="light">
                     Completados Hoy: {habitosCompletadosHoyCount}
@@ -225,8 +194,18 @@ function HabitosSection() {
                 <Badge color="blue" size="lg" variant="light">
                     Pendientes Hoy: {habitosPendientesHoyCount}
                 </Badge>
+                {/* --- NUEVO BOTÓN PARA EXPORTAR --- */}
+                {habitos.length > 0 && (
+                    <Button
+                        onClick={handleExportHabitos}
+                        leftSection={<IconFileSpreadsheet size={16} />}
+                        variant="outline"
+                        color="green"
+                    >
+                        Exportar a Excel
+                    </Button>
+                )}
             </Group>
-
             {habitos.length === 0 ? (
                 <Text ta="center" c="dimmed" mt="xl">
                     Aún no tienes hábitos. ¡Añade algunos para empezar!
@@ -265,13 +244,12 @@ function HabitosSection() {
                                 <Table.Tr key={habito.id}>
                                     <Table.Td>{habito.text}</Table.Td>
                                     {diasSemanaNombres.map((dia, index) => {
-                                        // Determinar si la casilla de verificación debe estar marcada
                                         const isCompleted = habitosCompletados.completions[habito.id]?.[dia] || false;
                                         return (
                                             <Table.Td key={dia} style={{ textAlign: 'center' }}>
                                                 <Checkbox
                                                     checked={isCompleted}
-                                                    onChange={() => toggleHabitoCompleted(habito.id, index)} // Pasar el índice del día
+                                                    onChange={() => toggleHabitoCompleted(habito.id, index)}
                                                     color="teal"
                                                     size="sm"
                                                     aria-label={`Marcar ${habito.text} para ${dia}`}
@@ -286,7 +264,7 @@ function HabitosSection() {
                                             onClick={() => handleDeleteHabito(habito.id)}
                                             size="md"
                                         >
-                                            <IconTrash style={{ width: rem(16), height: rem(16) }} />
+                                            <IconTrash style={{ width: rem(16), height: rem(16)} } />
                                         </ActionIcon>
                                     </Table.Td>
                                 </Table.Tr>

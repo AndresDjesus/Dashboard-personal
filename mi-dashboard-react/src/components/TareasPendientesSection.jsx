@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
     Paper,
@@ -14,27 +13,24 @@ import {
     Badge,
     Flex // Importar Flex para mejor control del layout
 } from '@mantine/core';
-import { IconListCheck, IconTrash, IconX } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications'; // Importar notificaciones
-import { modals } from '@mantine/modals';           // Importar modales
+// Importa el nuevo icono IconFileSpreadsheet
+import { IconListCheck, IconTrash, IconX, IconFileSpreadsheet } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 
-import { cargarDatos, guardarDatos } from '../utils/localStorageUtils';
+// Importa la función de exportación
+import { cargarDatos, guardarDatos, exportToXlsxWithStyle } from '../utils/localStorageUtils';
 
 function TareasPendientesSection() {
-    // Estado para la lista de tareas
-    // Cada tarea: { id: string, text: string, completed: boolean }
     const [tareas, setTareas] = useState(() =>
         cargarDatos('tareasPendientes', [])
     );
-
     const [nuevaTareaTexto, setNuevaTareaTexto] = useState('');
 
-    // Guarda las tareas en localStorage cada vez que cambian
     useEffect(() => {
         guardarDatos('tareasPendientes', tareas);
     }, [tareas]);
 
-    // Manejador para añadir una nueva tarea
     const handleAddTarea = () => {
         if (nuevaTareaTexto.trim() === '') {
             notifications.show({
@@ -45,7 +41,6 @@ function TareasPendientesSection() {
             return;
         }
         
-        // Límite de 3 tareas no completadas
         const tareasNoCompletadas = tareas.filter(tarea => !tarea.completed).length;
         if (tareasNoCompletadas >= 3) {
             notifications.show({
@@ -55,14 +50,13 @@ function TareasPendientesSection() {
             });
             return;
         }
-
         const nuevaTarea = {
-            id: Date.now().toString(), // ID único
+            id: Date.now().toString(),
             text: nuevaTareaTexto.trim(),
-            completed: false, // Por defecto no completada
+            completed: false,
         };
         setTareas([...tareas, nuevaTarea]);
-        setNuevaTareaTexto(''); // Limpiar el input
+        setNuevaTareaTexto('');
         notifications.show({
             title: 'Tarea Añadida',
             message: `"${nuevaTarea.text}" ha sido añadida a tus tareas pendientes.`,
@@ -70,7 +64,6 @@ function TareasPendientesSection() {
         });
     };
 
-    // Manejador para alternar el estado de completado de una tarea
     const toggleTareaCompleted = (id) => {
         const updatedTareas = tareas.map(tarea =>
             tarea.id === id
@@ -79,8 +72,8 @@ function TareasPendientesSection() {
         );
         setTareas(updatedTareas);
         const tareaToggle = tareas.find(tarea => tarea.id === id);
-        if (tareaToggle && !tareaToggle.completed) { // Si se acaba de completar
-             notifications.show({
+        if (tareaToggle && !tareaToggle.completed) {
+              notifications.show({
                 title: 'Tarea Completada',
                 message: `¡Felicidades! "${tareaToggle.text}" ha sido marcada como completada.`,
                 color: 'teal',
@@ -88,7 +81,6 @@ function TareasPendientesSection() {
         }
     };
 
-    // Manejador para eliminar una tarea
     const handleDeleteTarea = (id) => {
         modals.openConfirmModal({
             title: 'Confirmar Eliminación',
@@ -116,10 +108,18 @@ function TareasPendientesSection() {
         });
     };
 
+    // --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL ---
+    const handleExportTareas = () => {
+        const dataForExport = tareas.map(tarea => ({
+            'ID': tarea.id,
+            'Tarea': tarea.text,
+            'Estado': tarea.completed ? 'Completada' : 'Pendiente'
+        }));
+
+        exportToXlsxWithStyle(dataForExport, 'tareas_pendientes', 'Tareas');
+    };
+
     const tareasCompletadasCount = tareas.filter(tarea => tarea.completed).length;
-    const tareasPendientesCount = tareas.length - tareasCompletadasCount;
-    // OJO: Si el límite es 3 para tareas no completadas, este conteo puede ser confuso
-    // Si la idea es 3 tareas activas, podríamos mostrar un contador diferente
     const tareasActivas = tareas.filter(tarea => !tarea.completed);
     const tareasActivasCount = tareasActivas.length;
 
@@ -129,8 +129,7 @@ function TareasPendientesSection() {
                 <IconListCheck size={28} />
                 Tareas Pendientes del Día
             </Title>
-
-            <Group mb="md" grow align="flex-end"> {/* align="flex-end" para alinear botón */}
+            <Group mb="md" grow align="flex-end">
                 <TextInput
                     label="Nueva Tarea:"
                     placeholder="Ej. Enviar informe"
@@ -148,7 +147,6 @@ function TareasPendientesSection() {
                     Añadir Tarea
                 </Button>
             </Group>
-
             <Group position="apart" mb="md">
                 <Badge color="green" size="lg" variant="light">
                     Completadas: {tareasCompletadasCount}
@@ -156,8 +154,19 @@ function TareasPendientesSection() {
                 <Badge color="blue" size="lg" variant="light">
                     Activas: {tareasActivasCount}
                 </Badge>
+                
+                {/* --- NUEVO BOTÓN PARA EXPORTAR --- */}
+                {tareas.length > 0 && (
+                    <Button
+                        onClick={handleExportTareas}
+                        leftSection={<IconFileSpreadsheet size={16} />}
+                        variant="outline"
+                        color="green"
+                    >
+                        Exportar
+                    </Button>
+                )}
             </Group>
-
             {tareas.length === 0 ? (
                 <Text ta="center" c="dimmed" mt="xl">
                     ¡Sin tareas! ¿Listo para añadir tus prioridades del día?

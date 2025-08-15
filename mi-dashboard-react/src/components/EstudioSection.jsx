@@ -1,37 +1,36 @@
+// src/components/EstudioSection.jsx
 import React, { useState, useEffect } from 'react';
 import { NumberInput, Button, Box, Paper, Title, Group, Text } from '@mantine/core';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
-import { notifications } from '@mantine/notifications'; // Importar para usar notificaciones Mantine
-import { IconBook } from '@tabler/icons-react'; // Icono para la sección de estudio
+import { notifications } from '@mantine/notifications';
+// Importamos el nuevo icono para el botón de exportar
+import { IconBook, IconFileSpreadsheet } from '@tabler/icons-react';
 
-// Importamos las funciones de localStorageUtils que tienes
-import { cargarDatos, guardarDatos, getDiaActualIndex, getWeekNumber } from '../utils/localStorageUtils'; 
+// Importamos las funciones de localStorageUtils, incluyendo la de exportar
+import {
+    cargarDatos,
+    guardarDatos,
+    getDiaActualIndex,
+    getWeekNumber,
+    exportToXlsxWithStyle // <-- ¡La nueva función!
+} from '../utils/localStorageUtils';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend);
 
-// Los labels de los días de la semana, que corresponden a los índices de getDiaActualIndex():
-// Lunes (0) a Domingo (6)
 const labelsDiasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 function EstudioSection() {
-    // Estado para las horas de estudio por día [Lun, Mar, Mié, Jue, Vie, Sáb, Dom]
     const [horasEstudio, setHorasEstudio] = useState(() => {
         const datosGuardados = cargarDatos('datosEstudio', [0, 0, 0, 0, 0, 0, 0]);
         const ultimaActualizacion = cargarDatos('ultimaActualizacionEstudio', null);
-        
         const hoy = new Date();
         const ultimoDiaGuardado = ultimaActualizacion ? new Date(ultimaActualizacion) : null;
-
         let datosIniciales = datosGuardados;
-
-        // Comprobación de cambio de semana/año para reiniciar los datos
         if (ultimoDiaGuardado) {
             const esMismoAño = hoy.getFullYear() === ultimoDiaGuardado.getFullYear();
             const semanaHoy = getWeekNumber(hoy);
             const semanaUltimoGuardado = getWeekNumber(ultimoDiaGuardado);
-            
-            // Si hay cambio de año o cambio de semana, reiniciamos las horas de estudio
             if (!esMismoAño || semanaHoy !== semanaUltimoGuardado) {
                 console.log("Detectado cambio de semana/año para estudio, reiniciando horas.");
                 notifications.show({
@@ -41,32 +40,26 @@ function EstudioSection() {
                     icon: <IconBook size={18} />,
                     autoClose: 5000,
                 });
-                datosIniciales = [0, 0, 0, 0, 0, 0, 0]; 
+                datosIniciales = [0, 0, 0, 0, 0, 0, 0];
             }
         }
-        // Aseguramos que los datos devueltos sean una copia limpia
         return JSON.parse(JSON.stringify(datosIniciales));
     });
 
-    // Estado para el input de horas de estudio
     const [inputHoras, setInputHoras] = useState(0);
 
-    // Efecto para inicializar el input de horas con el valor del día actual al cargar
     useEffect(() => {
-        // Usamos getDiaActualIndex() de tu localStorageUtils, que mapea Lunes a 0.
         const diaActualIndex = getDiaActualIndex();
         setInputHoras(horasEstudio[diaActualIndex] || 0);
-    }, [horasEstudio]); // Se ejecuta cuando horasEstudio cambia
+    }, [horasEstudio]);
 
-    // Efecto para guardar 'horasEstudio' y 'ultimaActualizacionEstudio' en localStorage
     useEffect(() => {
         const dataToSave = JSON.parse(JSON.stringify(horasEstudio));
         guardarDatos('datosEstudio', dataToSave);
-        guardarDatos('ultimaActualizacionEstudio', new Date().toISOString()); // Guarda la fecha y hora actual
+        guardarDatos('ultimaActualizacionEstudio', new Date().toISOString());
         console.log("Horas de estudio guardadas en localStorage:", dataToSave);
     }, [horasEstudio]);
 
-    // Datos para Chart.js
     const chartData = {
         labels: labelsDiasSemana,
         datasets: [{
@@ -78,7 +71,6 @@ function EstudioSection() {
         }],
     };
 
-    // Opciones para Chart.js
     const chartOptions = {
         responsive: true,
         maintainAspectRatio: false,
@@ -90,7 +82,7 @@ function EstudioSection() {
                     text: 'Horas'
                 },
                 ticks: {
-                    precision: 0 // Asegura que las etiquetas del eje Y sean números enteros
+                    precision: 0
                 }
             },
             x: {
@@ -119,20 +111,13 @@ function EstudioSection() {
         }
     };
 
-    // Función para manejar el guardado de horas de estudio
     const handleSaveEstudio = () => {
         const valorNumerico = parseFloat(inputHoras);
-
         if (!isNaN(valorNumerico) && valorNumerico >= 0) {
-            // Usamos getDiaActualIndex() de tu localStorageUtils, que mapea Lunes a 0.
             const diaActualIndex = getDiaActualIndex();
-            
-            // Crea una copia *limpia* del array actual de horas
-            const nuevosDatosEstudio = JSON.parse(JSON.stringify(horasEstudio));
+            const nuevosDatosEstudio = [...horasEstudio]; // Copia el array
             nuevosDatosEstudio[diaActualIndex] = valorNumerico;
-            
-            setHorasEstudio(nuevosDatosEstudio); // Actualiza el estado
-            
+            setHorasEstudio(nuevosDatosEstudio);
             notifications.show({
                 title: 'Horas de Estudio Registradas',
                 message: `Has registrado ${valorNumerico} horas de estudio para hoy.`,
@@ -148,6 +133,22 @@ function EstudioSection() {
         }
     };
 
+    // --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL ---
+    const handleExportEstudio = () => {
+        // Prepara los datos en el formato correcto para el excel
+        const dataForExport = labelsDiasSemana.map((dia, index) => ({
+            'Día de la Semana': dia,
+            'Horas de Estudio': horasEstudio[index]
+        }));
+        
+        const sheetName = 'Horas de Estudio';
+        // Obtiene la fecha de inicio de la semana para el nombre del archivo
+        const weekStart = new Date(new Date().setDate(new Date().getDate() - getDiaActualIndex())).toISOString().split('T')[0];
+        const fileName = `horas_estudio_${weekStart}`;
+        
+        exportToXlsxWithStyle(dataForExport, fileName, sheetName);
+    };
+
     return (
         <Paper shadow="sm" p="lg" withBorder radius="md">
             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -155,7 +156,6 @@ function EstudioSection() {
                 Horas de Estudio Semanales
             </Title>
             <Box style={{ position: 'relative', height: '300px', width: '100%' }} mb="md">
-                {/* La clave aquí ayuda a Chart.js a re-renderizar la gráfica cuando los datos cambian */}
                 <Bar key={JSON.stringify(horasEstudio)} data={chartData} options={chartOptions} />
             </Box>
             <Group grow mt="md">
@@ -168,8 +168,17 @@ function EstudioSection() {
                     onChange={setInputHoras}
                     sx={{ flexGrow: 1 }}
                 />
-                <Button onClick={handleSaveEstudio} variant="filled" color="teal">
+                <Button onClick={handleSaveEstudio} variant="filled" color="teal" leftSection={<IconBook size={16} />}>
                     Guardar
+                </Button>
+                {/* --- NUEVO BOTÓN PARA EXPORTAR --- */}
+                <Button
+                    onClick={handleExportEstudio}
+                    variant="outline"
+                    color="green"
+                    leftSection={<IconFileSpreadsheet size={16} />}
+                >
+                    Exportar
                 </Button>
             </Group>
             <Text size="sm" c="dimmed" mt="xs" ta="center">
