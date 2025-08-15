@@ -1,26 +1,32 @@
-import { useState, useEffect } from 'react';
-import { AppShell, Burger, Group, Container, Text, NavLink, Paper, Title } from '@mantine/core';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { AppShell, Burger, Group, Container, Text, NavLink, Paper, Title, Loader, Center } from '@mantine/core'; // Añadí Center y Loader
 import { useDisclosure } from '@mantine/hooks';
 import { MantineProvider } from '@mantine/core';
 
+// Importa los estilos de Mantine
 import '@mantine/core/styles.css'; 
+
+// Importa los componentes necesarios para Notificaciones y Modales
 import { Notifications } from '@mantine/notifications';
 import { ModalsProvider, modals } from '@mantine/modals';
 
+// Importa las funciones mejoradas de localStorageUtils
 import { clearAllData, exportAllData, importAllData, cargarDatos, guardarDatos } from './utils/localStorageUtils'; 
 
-import FinanzasSection from './components/FinanzasSection';
-import PresupuestoSection from './components/PresupuestoSection';
-import MetasSection from './components/MetasSection';
-import HabitosSection from './components/HabitosSection';
-import LogrosSection from './components/LogrosSection';
-import EstadoAnimoSection from './components/EstadoAnimoSection';
-import PerfilSection from './components/PerfilSection'; 
-import EjercicioSection from './components/EjercicioSection';
-import EstudioSection from './components/EstudioSection';
-import CitasMotivacionSection from './components/CitasMotivacionSection'; 
-import TareasPendientesSection from './components/TareasPendientesSection';
+// --- CAMBIO CLAVE: Importaciones perezosas para todas las secciones ---
+const FinanzasSection = lazy(() => import('./components/FinanzasSection'));
+const PresupuestoSection = lazy(() => import('./components/PresupuestoSection'));
+const MetasSection = lazy(() => import('./components/MetasSection'));
+const HabitosSection = lazy(() => import('./components/HabitosSection'));
+const LogrosSection = lazy(() => import('./components/LogrosSection'));
+const EstadoAnimoSection = lazy(() => import('./components/EstadoAnimoSection'));
+const PerfilSection = lazy(() => import('./components/PerfilSection'));
+const EjercicioSection = lazy(() => import('./components/EjercicioSection'));
+const EstudioSection = lazy(() => import('./components/EstudioSection'));
+const CitasMotivacionSection = lazy(() => import('./components/CitasMotivacionSection')); 
+const TareasPendientesSection = lazy(() => import('./components/TareasPendientesSection'));
 
+// Importa iconos de Tabler
 import { 
     IconUser, 
     IconWallet, 
@@ -35,7 +41,7 @@ import {
     IconTrash 
 } from '@tabler/icons-react';
 
-// Función auxiliar para generar la URL de Dicebear, movida a App.jsx
+// Función auxiliar para generar la URL de Dicebear
 const generateDicebearUrl = (name) => {
     return `https://api.dicebear.com/8.x/lorelei/svg?seed=${name || 'default'}`;
 };
@@ -44,7 +50,7 @@ function App() {
     const [opened, { toggle }] = useDisclosure();
     const [activeSection, setActiveSection] = useState('perfil'); 
 
-    // --- CAMBIO CLAVE: GESTIÓN DE ESTADO DEL USUARIO AHORA EN APP.JSX ---
+    // GESTIÓN DE ESTADO DEL USUARIO AHORA EN APP.JSX
     const [userName, setUserName] = useState(() => cargarDatos('userName', 'Tu Nombre'));
     const initialSavedAvatarUrl = cargarDatos('avatarUrl', '');
     const [avatarUrl, setAvatarUrl] = useState(() => {
@@ -55,7 +61,6 @@ function App() {
         }
     });
 
-    // Sincroniza los estados con localStorage
     useEffect(() => {
         guardarDatos('userName', userName);
     }, [userName]);
@@ -65,28 +70,35 @@ function App() {
         guardarDatos('avatarUrl', urlToSave);
     }, [avatarUrl]);
 
-    const sections = [
-        { id: 'perfil', label: 'Mi Perfil', component: <PerfilSection 
-            userName={userName} 
-            setUserName={setUserName} 
-            avatarUrl={avatarUrl} 
-            setAvatarUrl={setAvatarUrl} 
-            generateDicebearUrl={generateDicebearUrl} 
-        />, icon: <IconUser size={18} /> }, 
-        { id: 'estadoAnimo', label: 'Estado de Ánimo', component: <EstadoAnimoSection />, icon: <IconMoodHappy size={18} /> },
-        { id: 'finanzas', label: 'Finanzas', component: <FinanzasSection />, icon: <IconWallet size={18} /> },
-        { id: 'presupuesto', label: 'Presupuesto', component: <PresupuestoSection />, icon: <IconTarget size={18} /> },
-        { id: 'metas', label: 'Mis Metas', component: <MetasSection />, icon: <IconTarget size={18} /> }, 
-        { id: 'habitos', label: 'Mis Hábitos', component: <HabitosSection />, icon: <IconChecklist size={18} /> },
-        { id: 'logros', label: 'Mis Logros', component: <LogrosSection />, icon: <IconAward size={18} /> },
-        { id: 'estudio', label: 'Horas de Estudio', component: <EstudioSection />, icon: <IconBook2 size={18} /> },
-        { id: 'entrenamiento', label: 'Horas de Entrenamiento', component: <EjercicioSection />, icon: <IconWeight size={18} /> },
-        { id: 'tareasPendientes', label: 'Tareas Pendientes', component: <TareasPendientesSection />, icon: <IconChecklist size={18} /> },
+    // Usamos un objeto para mapear IDs a componentes perezosos
+    const sections = {
+        perfil: <PerfilSection userName={userName} setUserName={setUserName} avatarUrl={avatarUrl} setAvatarUrl={setAvatarUrl} generateDicebearUrl={generateDicebearUrl} />, 
+        estadoAnimo: <EstadoAnimoSection />,
+        finanzas: <FinanzasSection />,
+        presupuesto: <PresupuestoSection />,
+        metas: <MetasSection />, 
+        habitos: <HabitosSection />,
+        logros: <LogrosSection />,
+        estudio: <EstudioSection />,
+        entrenamiento: <EjercicioSection />,
+        tareasPendientes: <TareasPendientesSection />,
+    };
+
+    const navLinks = [
+        { id: 'perfil', label: 'Mi Perfil', icon: <IconUser size={18} /> }, 
+        { id: 'estadoAnimo', label: 'Estado de Ánimo', icon: <IconMoodHappy size={18} /> },
+        { id: 'finanzas', label: 'Finanzas', icon: <IconWallet size={18} /> },
+        { id: 'presupuesto', label: 'Presupuesto', icon: <IconTarget size={18} /> },
+        { id: 'metas', label: 'Mis Metas', icon: <IconTarget size={18} /> }, 
+        { id: 'habitos', label: 'Mis Hábitos', icon: <IconChecklist size={18} /> },
+        { id: 'logros', label: 'Mis Logros', icon: <IconAward size={18} /> },
+        { id: 'estudio', label: 'Horas de Estudio', icon: <IconBook2 size={18} /> },
+        { id: 'entrenamiento', label: 'Horas de Entrenamiento', icon: <IconWeight size={18} /> },
+        { id: 'tareasPendientes', label: 'Tareas Pendientes', icon: <IconChecklist size={18} /> },
     ];
 
     const renderActiveSection = () => {
-        const section = sections.find(s => s.id === activeSection);
-        return section ? section.component : <Text>Sección no encontrada.</Text>;
+        return sections[activeSection] || <Text>Sección no encontrada.</Text>;
     };
 
     const handleClearData = () => {
@@ -133,7 +145,7 @@ function App() {
 
                     <AppShell.Navbar p="md">
                         <Text size="xl" fw={700} c="dimmed" mb="md">Menú</Text>
-                        {sections.map((section) => (
+                        {navLinks.map((section) => (
                             <NavLink
                                 key={section.id}
                                 label={section.label}
@@ -177,17 +189,24 @@ function App() {
 
                     <AppShell.Main>
                         <Container size="xl">
-                            {/* --- CAMBIO AQUÍ: EL TÍTULO AHORA USA EL ESTADO DE APP.JSX --- */}
                             {activeSection === 'perfil' && (
                                 <Paper shadow="sm" p="lg" withBorder radius="md" mb="lg">
                                     <Title order={2} mb="sm">¡Hola, {userName}!</Title>
                                     <Text size="lg" mb="md" c="dimmed">
                                         Bienvenido de nuevo a tu espacio personal. ¡Vamos a hacer de hoy un gran día!
                                     </Text>
-                                    <CitasMotivacionSection /> 
+                                    {/* Ahora usamos Suspense para cargar las citas */}
+                                    <Suspense fallback={null}> 
+                                        <CitasMotivacionSection /> 
+                                    </Suspense>
                                 </Paper>
                             )}
-                            {renderActiveSection()} 
+                            
+                            {/* Este Suspense envuelve todas las demás secciones */}
+                            <Suspense fallback={<Center style={{ height: '70vh' }}><Loader size="xl" /></Center>}>
+                                {renderActiveSection()} 
+                            </Suspense>
+                            
                         </Container>
                     </AppShell.Main>
 
