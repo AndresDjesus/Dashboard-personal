@@ -1,22 +1,14 @@
-import { useState } from 'react';
-import { AppShell, Burger, Group, Container, Text, NavLink, Paper, Title, Stack } from '@mantine/core'; // Añadí Stack para compatibilidad con FinanzasSection
+import { useState, useEffect } from 'react';
+import { AppShell, Burger, Group, Container, Text, NavLink, Paper, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { MantineProvider } from '@mantine/core';
 
-// IMPORTS DE ESTILOS DE MANTINE:
-// En Mantine v7, a menudo solo necesitas importar el CSS principal.
-// Este archivo incluye la mayoría de los estilos para los componentes básicos,
-// incluyendo Notifications y Modals.
 import '@mantine/core/styles.css'; 
-
-// Importa los componentes necesarios para Notificaciones y Modales
 import { Notifications } from '@mantine/notifications';
 import { ModalsProvider, modals } from '@mantine/modals';
 
-// Importa las funciones mejoradas de localStorageUtils
-import { clearAllData, exportAllData, importAllData } from './utils/localStorageUtils'; 
+import { clearAllData, exportAllData, importAllData, cargarDatos, guardarDatos } from './utils/localStorageUtils'; 
 
-// Importa tus componentes de sección
 import FinanzasSection from './components/FinanzasSection';
 import PresupuestoSection from './components/PresupuestoSection';
 import MetasSection from './components/MetasSection';
@@ -29,7 +21,6 @@ import EstudioSection from './components/EstudioSection';
 import CitasMotivacionSection from './components/CitasMotivacionSection'; 
 import TareasPendientesSection from './components/TareasPendientesSection';
 
-// Importa iconos de Tabler
 import { 
     IconUser, 
     IconWallet, 
@@ -39,17 +30,49 @@ import {
     IconAward,
     IconBook2,
     IconWeight,
-    IconDownload, // Icono para exportar
-    IconUpload,   // Icono para importar
-    IconTrash     // Icono para borrar datos
+    IconDownload, 
+    IconUpload, 
+    IconTrash 
 } from '@tabler/icons-react';
+
+// Función auxiliar para generar la URL de Dicebear, movida a App.jsx
+const generateDicebearUrl = (name) => {
+    return `https://api.dicebear.com/8.x/lorelei/svg?seed=${name || 'default'}`;
+};
 
 function App() {
     const [opened, { toggle }] = useDisclosure();
     const [activeSection, setActiveSection] = useState('perfil'); 
 
+    // --- CAMBIO CLAVE: GESTIÓN DE ESTADO DEL USUARIO AHORA EN APP.JSX ---
+    const [userName, setUserName] = useState(() => cargarDatos('userName', 'Tu Nombre'));
+    const initialSavedAvatarUrl = cargarDatos('avatarUrl', '');
+    const [avatarUrl, setAvatarUrl] = useState(() => {
+        if (initialSavedAvatarUrl) {
+            return initialSavedAvatarUrl;
+        } else {
+            return generateDicebearUrl(userName);
+        }
+    });
+
+    // Sincroniza los estados con localStorage
+    useEffect(() => {
+        guardarDatos('userName', userName);
+    }, [userName]);
+
+    useEffect(() => {
+        const urlToSave = avatarUrl.startsWith('https://api.dicebear.com/') ? '' : avatarUrl;
+        guardarDatos('avatarUrl', urlToSave);
+    }, [avatarUrl]);
+
     const sections = [
-        { id: 'perfil', label: 'Mi Perfil', component: <PerfilSection />, icon: <IconUser size={18} /> }, 
+        { id: 'perfil', label: 'Mi Perfil', component: <PerfilSection 
+            userName={userName} 
+            setUserName={setUserName} 
+            avatarUrl={avatarUrl} 
+            setAvatarUrl={setAvatarUrl} 
+            generateDicebearUrl={generateDicebearUrl} 
+        />, icon: <IconUser size={18} /> }, 
         { id: 'estadoAnimo', label: 'Estado de Ánimo', component: <EstadoAnimoSection />, icon: <IconMoodHappy size={18} /> },
         { id: 'finanzas', label: 'Finanzas', component: <FinanzasSection />, icon: <IconWallet size={18} /> },
         { id: 'presupuesto', label: 'Presupuesto', component: <PresupuestoSection />, icon: <IconTarget size={18} /> },
@@ -66,11 +89,6 @@ function App() {
         return section ? section.component : <Text>Sección no encontrada.</Text>;
     };
 
-    // Nombre de usuario de ejemplo para la bienvenida global.
-    // Esto debería cargarse desde PerfilSection o un contexto de usuario para ser dinámico.
-    const userName = "Usuario"; 
-
-    // Función para manejar la confirmación de borrado de datos
     const handleClearData = () => {
         modals.openConfirmModal({
             title: 'Confirmar Eliminación de Datos',
@@ -87,7 +105,6 @@ function App() {
         });
     };
 
-    // Función para manejar la importación de archivos
     const handleImportData = (event) => {
         const file = event.target.files[0];
         if (file) {
@@ -97,7 +114,6 @@ function App() {
     };
 
     return (
-        // MantineProvider debe envolver a Notifications y ModalsProvider
         <MantineProvider defaultColorScheme="dark">
             <Notifications /> 
             <ModalsProvider> 
@@ -161,6 +177,7 @@ function App() {
 
                     <AppShell.Main>
                         <Container size="xl">
+                            {/* --- CAMBIO AQUÍ: EL TÍTULO AHORA USA EL ESTADO DE APP.JSX --- */}
                             {activeSection === 'perfil' && (
                                 <Paper shadow="sm" p="lg" withBorder radius="md" mb="lg">
                                     <Title order={2} mb="sm">¡Hola, {userName}!</Title>
@@ -170,7 +187,6 @@ function App() {
                                     <CitasMotivacionSection /> 
                                 </Paper>
                             )}
-                            
                             {renderActiveSection()} 
                         </Container>
                     </AppShell.Main>

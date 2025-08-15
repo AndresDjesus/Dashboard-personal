@@ -1,49 +1,26 @@
-// src/components/PerfilSection.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Title, Text, Avatar, Group, Center, TextInput, Button, Stack, rem, ActionIcon, Flex, Box } from '@mantine/core';
-import { IconUserCircle, IconEdit, IconCheck, IconX, IconLink, IconUpload } from '@tabler/icons-react'; // Agregamos IconUpload
-import { notifications } from '@mantine/notifications';
+import { IconUserCircle, IconEdit, IconCheck, IconX, IconLink, IconUpload } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications'; 
 
-import { cargarDatos, guardarDatos } from '../utils/localStorageUtils';
+// Ya no necesitamos importar localStorageUtils aquí, App.jsx lo maneja
+// import { cargarDatos, guardarDatos } from '../utils/localStorageUtils'; 
 
-const generateDicebearUrl = (name) => {
-    return `https://api.dicebear.com/8.x/lorelei/svg?seed=${name || 'default'}`;
-};
+// El componente ahora recibe props del componente padre (App.jsx)
+function PerfilSection({ userName, setUserName, avatarUrl, setAvatarUrl, generateDicebearUrl }) {
+    // Los estados temporales siguen siendo locales, eso está bien.
+    const [editingProfile, setEditingProfile] = useState(false); 
+    const [tempUserName, setTempUserName] = useState(userName); 
+    const [tempAvatarUrl, setTempAvatarUrl] = useState(avatarUrl);
+    const [uploadedImageFile, setUploadedImageFile] = useState(null);
+    const fileInputRef = useRef(null);
 
-function PerfilSection() {
-    const [userName, setUserName] = useState(() => cargarDatos('userName', 'Tu Nombre'));
-    const initialSavedAvatarUrl = cargarDatos('avatarUrl', '');
-    const [avatarUrl, setAvatarUrl] = useState(() => {
-        if (initialSavedAvatarUrl && initialSavedAvatarUrl.startsWith('data:')) {
-            // Si la URL guardada es una Data URL, la usamos
-            return initialSavedAvatarUrl;
-        } else if (initialSavedAvatarUrl) {
-            // Si es una URL externa, la usamos
-            return initialSavedAvatarUrl;
-        } else {
-            // Si no hay URL, generamos una de Dicebear
-            return generateDicebearUrl(userName);
-        }
-    });
-    
-    const [editingProfile, setEditingProfile] = useState(false);
-    const [tempUserName, setTempUserName] = useState(userName);
-    const [tempAvatarUrl, setTempAvatarUrl] = useState(initialSavedAvatarUrl);
-    const [uploadedImageFile, setUploadedImageFile] = useState(null); // Nuevo estado para el archivo subido
-    const fileInputRef = useRef(null); // Referencia para el input de archivo
-
+    // Sincroniza los estados temporales con las props que vienen de App.jsx
     useEffect(() => {
-        guardarDatos('userName', userName);
-        console.log("Nombre de usuario guardado en localStorage:", userName);
-    }, [userName]);
+        setTempUserName(userName);
+        setTempAvatarUrl(avatarUrl);
+    }, [userName, avatarUrl]);
 
-    useEffect(() => {
-        // Guardamos solo si la URL no es temporal de Dicebear para evitar guardar un avatar genérico.
-        // Si no hay una URL personalizada, guardamos un string vacío.
-        const urlToSave = avatarUrl.startsWith('https://api.dicebear.com/') ? '' : avatarUrl;
-        guardarDatos('avatarUrl', urlToSave);
-        console.log("URL de avatar guardada en localStorage:", urlToSave);
-    }, [avatarUrl]);
 
     // Manejador para la selección de archivos
     const handleImageUpload = (event) => {
@@ -51,8 +28,9 @@ function PerfilSection() {
         if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
-                // `reader.result` es la Data URL
                 setUploadedImageFile(reader.result);
+                // Si el usuario sube un archivo, limpiamos la URL temporal
+                setTempAvatarUrl('');
             };
             reader.readAsDataURL(file);
         }
@@ -68,21 +46,17 @@ function PerfilSection() {
             return;
         }
 
+        // --- CAMBIO CLAVE: USAMOS LAS FUNCIONES DE LAS PROPS PARA ACTUALIZAR EL ESTADO GLOBAL ---
         setUserName(tempUserName);
 
-        let newAvatarToSet;
         if (uploadedImageFile) {
-            // Si se subió un archivo, usamos su Data URL
-            newAvatarToSet = uploadedImageFile;
-            setUploadedImageFile(null); // Reseteamos el estado para el próximo uso
+            setAvatarUrl(uploadedImageFile);
+            setUploadedImageFile(null); // Reseteamos el estado
         } else if (tempAvatarUrl.trim() === '') {
-            // Si se borra la URL y no hay archivo, volvemos a Dicebear
-            newAvatarToSet = generateDicebearUrl(tempUserName);
+            setAvatarUrl(generateDicebearUrl(tempUserName));
         } else {
-            // Si hay una URL en el campo, la usamos
-            newAvatarToSet = tempAvatarUrl;
+            setAvatarUrl(tempAvatarUrl);
         }
-        setAvatarUrl(newAvatarToSet);
 
         setEditingProfile(false);
         notifications.show({
@@ -95,7 +69,7 @@ function PerfilSection() {
     const handleCancelEdit = () => {
         setTempUserName(userName);
         setTempAvatarUrl(avatarUrl);
-        setUploadedImageFile(null); // Reseteamos el archivo subido
+        setUploadedImageFile(null);
         setEditingProfile(false);
         notifications.show({
             title: 'Edición Cancelada',
@@ -112,14 +86,12 @@ function PerfilSection() {
             </Title>
             <Center mb="md">
                 <Stack align="center" spacing="sm">
-                    <Avatar
-                        size={rem(120)}
-                        radius="100%"
-                        src={uploadedImageFile || tempAvatarUrl || avatarUrl} // Usa el archivo subido si existe, si no, la URL temporal o la URL principal
+                    <Avatar 
+                        size={rem(120)} 
+                        radius="100%" 
+                        src={uploadedImageFile || tempAvatarUrl || avatarUrl} 
                         onError={() => {
-                            if (!tempAvatarUrl.startsWith('data:')) {
-                                setTempAvatarUrl(generateDicebearUrl(tempUserName));
-                            }
+                            setTempAvatarUrl(generateDicebearUrl(tempUserName));
                         }}
                     >
                         {!uploadedImageFile && !tempAvatarUrl && !avatarUrl && <IconUserCircle size={rem(80)} />}
@@ -141,14 +113,12 @@ function PerfilSection() {
                                 value={tempAvatarUrl}
                                 onChange={(event) => {
                                     setTempAvatarUrl(event.currentTarget.value);
-                                    setUploadedImageFile(null); // Limpia el archivo subido si el usuario edita la URL
+                                    setUploadedImageFile(null);
                                 }}
                                 placeholder="Pega la URL de tu imagen"
                                 size="md"
                                 w="100%"
                             />
-
-                            {/* --- CAMBIO AQUÍ: Nuevo botón y input de archivo --- */}
                             <Box w="100%">
                                 <Button
                                     fullWidth
@@ -166,8 +136,6 @@ function PerfilSection() {
                                     accept="image/png, image/jpeg, image/jpg"
                                 />
                             </Box>
-                            {/* --- FIN DEL CAMBIO --- */}
-
                             <Group spacing="xs">
                                 <ActionIcon onClick={handleSaveProfile} variant="filled" color="green" size="lg" title="Guardar cambios">
                                     <IconCheck style={{ width: rem(20), height: rem(20) }} />
