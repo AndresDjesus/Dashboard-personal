@@ -1,30 +1,31 @@
 // src/components/LogrosSection.jsx
 import React, { useState, useEffect } from 'react';
-import { Paper, Title, Text, Textarea, Button, Group, rem, Center, Box, Transition } from '@mantine/core';
-import { IconTrophy, IconStar, IconConfetti, IconAward, IconTrash } from '@tabler/icons-react'; // Añadido IconTrash para el botón de borrar
-import { notifications } from '@mantine/notifications'; // Importar notificaciones
-import { modals } from '@mantine/modals';           // Importar modales
+import { Paper, Title, Text, Textarea, Button, Group, rem, Center, Box, Transition, Stack } from '@mantine/core';
+import { IconTrophy, IconStar, IconConfetti, IconAward, IconTrash } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 
-import { cargarDatos, guardarDatos, getTodayFormattedDate } from '../utils/localStorageUtils'; // Importamos getTodayFormattedDate
+import { cargarDatos, guardarDatos, getTodayFormattedDate } from '../utils/localStorageUtils';
 
 function LogrosSection() {
-    // Estado para el último logro guardado
-    const [ultimoLogro, setUltimoLogro] = useState(() =>
-        cargarDatos('ultimoLogro', null)
+    // Estado para guardar la lista de los últimos 5 logros
+    const [logrosList, setLogrosList] = useState(() =>
+        // Carga la lista de logros del almacenamiento local
+        cargarDatos('logrosList', [])
     );
 
     // Estado para el texto temporal en el Textarea
     const [nuevoLogroTexto, setNuevoLogroTexto] = useState('');
 
     // Estado para controlar la animación de transición
-    const [showLogro, setShowLogro] = useState(false);
+    const [showTransition, setShowTransition] = useState(false);
 
     useEffect(() => {
-        // Cargar el logro al inicio y activar la transición si hay un logro
-        if (ultimoLogro) {
-            setShowLogro(true);
+        // Al cargar, activa la transición si ya hay logros guardados
+        if (logrosList.length > 0) {
+            setShowTransition(true);
         }
-    }, [ultimoLogro]); 
+    }, []);
 
     // Manejador para guardar el logro
     const handleGuardarLogro = () => {
@@ -36,18 +37,24 @@ function LogrosSection() {
             });
             return;
         }
+        
         const logroData = {
-            // Usamos getTodayFormattedDate para un formato consistente en el almacenamiento
-            date: getTodayFormattedDate(), 
+            id: Date.now(), // Usar un ID único para cada logro
+            date: getTodayFormattedDate(),
             text: nuevoLogroTexto.trim(),
         };
-        setUltimoLogro(logroData);
-        guardarDatos('ultimoLogro', logroData);
-        setNuevoLogroTexto(''); 
+
+        // Prepend el nuevo logro a la lista y mantener solo los últimos 5
+        const newLogrosList = [logroData, ...logrosList].slice(0, 5);
+        setLogrosList(newLogrosList);
+        guardarDatos('logrosList', newLogrosList);
+        
+        // Limpiar el input del logro
+        setNuevoLogroTexto('');
         
         // Reiniciar la animación para que se vea cada vez que se guarda un logro nuevo
-        setShowLogro(false); 
-        setTimeout(() => setShowLogro(true), 50); // Pequeño retardo para reiniciar la transición
+        setShowTransition(false);
+        setTimeout(() => setShowTransition(true), 50); // Pequeño retardo para reiniciar la transición
 
         notifications.show({
             title: '¡Logro Guardado!',
@@ -57,13 +64,13 @@ function LogrosSection() {
         });
     };
 
-    // Manejador para borrar el logro
-    const handleBorrarLogro = () => {
+    // Manejador para borrar un logro específico por su ID
+    const handleBorrarLogro = (id) => {
         modals.openConfirmModal({
             title: 'Confirmar Eliminación de Logro',
             children: (
                 <Text size="sm">
-                    ¿Estás seguro de que quieres borrar tu último logro? Esta acción no se puede deshacer.
+                    ¿Estás seguro de que quieres borrar este logro? Esta acción no se puede deshacer.
                 </Text>
             ),
             labels: { confirm: 'Sí, borrar', cancel: 'No, cancelar' },
@@ -74,12 +81,16 @@ function LogrosSection() {
                 color: 'gray',
             }),
             onConfirm: () => {
-                setUltimoLogro(null);
-                guardarDatos('ultimoLogro', null);
-                setShowLogro(false); // Ocultar la transición
+                const updatedList = logrosList.filter(logro => logro.id !== id);
+                setLogrosList(updatedList);
+                guardarDatos('logrosList', updatedList);
+                // Si la lista queda vacía, oculta la transición
+                if (updatedList.length === 0) {
+                    setShowTransition(false);
+                }
                 notifications.show({
                     title: 'Logro Borrado',
-                    message: 'Tu último logro ha sido eliminado.',
+                    message: 'El logro ha sido eliminado correctamente.',
                     color: 'orange',
                     icon: <IconTrash size={18} />,
                 });
@@ -91,22 +102,21 @@ function LogrosSection() {
     const formatDisplayDate = (dateString) => {
         if (!dateString) return '';
         try {
-            // Intenta parsear como YYYY-MM-DD si viene de getTodayFormattedDate
-            const date = new Date(dateString + 'T00:00:00'); // Añade T00:00:00 para evitar problemas de zona horaria
-            if (isNaN(date.getTime())) { // Si falla el parseo, intenta con el formato original si era diferente
+            const date = new Date(dateString + 'T00:00:00');
+            if (isNaN(date.getTime())) {
                 return new Date(dateString).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
             }
             return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
         } catch (e) {
             console.error("Error al formatear fecha:", e);
-            return dateString; // Retorna el string original si hay error
+            return dateString;
         }
     };
 
     return (
-        <Paper shadow="xl" p="lg" withBorder radius="md"> 
+        <Paper shadow="xl" p="lg" withBorder radius="md">
             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <IconTrophy size={28} /> {/* Icono de trofeo */}
+                <IconTrophy size={28} />
                 Celebra Tus Logros
             </Title>
 
@@ -117,7 +127,7 @@ function LogrosSection() {
                 value={nuevoLogroTexto}
                 onChange={(event) => setNuevoLogroTexto(event.currentTarget.value)}
                 mb="md"
-                autosize 
+                autosize
             />
 
             <Group position="right" mb="lg">
@@ -126,37 +136,54 @@ function LogrosSection() {
                 </Button>
             </Group>
 
-            {ultimoLogro ? (
-                <Transition mounted={showLogro} transition="scale-y" duration={300} timingFunction="ease-out">
+            {logrosList.length > 0 ? (
+                <Transition mounted={showTransition} transition="pop" duration={400} timingFunction="ease-out">
                     {(styles) => (
-                        <Box style={{ 
-                            ...styles, 
-                            border: `2px solid var(--mantine-color-green-6)`, 
-                            borderRadius: rem(8), 
-                            padding: rem(16), 
-                            marginTop: rem(20), 
-                            backgroundColor: 'var(--mantine-color-green-0)', 
-                            color: 'var(--mantine-color-green-9)' 
+                        <Box style={{
+                            ...styles,
+                            border: `2px solid var(--mantine-color-green-6)`,
+                            borderRadius: rem(8),
+                            padding: rem(16),
+                            marginTop: rem(20),
+                            backgroundColor: 'var(--mantine-color-green-0)',
+                            color: 'var(--mantine-color-green-9)'
                         }}>
                             <Center mb="xs">
-                                <IconConfetti size={48} style={{ color: 'var(--mantine-color-green-7)' }} /> 
-                                <IconStar size={48} style={{ color: 'var(--mantine-color-yellow-6)', marginLeft: rem(-15), marginRight: rem(-15) }} /> 
+                                <IconConfetti size={48} style={{ color: 'var(--mantine-color-green-7)' }} />
+                                <IconStar size={48} style={{ color: 'var(--mantine-color-yellow-6)', margin: `0 ${rem(-15)}` }} />
                                 <IconConfetti size={48} style={{ color: 'var(--mantine-color-green-7)' }} />
                             </Center>
                             <Title order={3} ta="center" c="green.8" mb="xs">
-                                ¡Felicitaciones!
+                                ¡Felicidades!
                             </Title>
                             <Text size="lg" ta="center" fw={600} mb="xs">
-                                "{ultimoLogro.text}"
+                                ¡Has registrado un nuevo logro!
                             </Text>
-                            <Text size="sm" ta="center" c="dimmed">
-                                Registrado el: {formatDisplayDate(ultimoLogro.date)} {/* Usar la función de formateo */}
-                            </Text>
-                            <Center mt="md">
-                                <Button variant="outline" color="red" size="xs" onClick={handleBorrarLogro}>
-                                    Borrar Logro
-                                </Button>
-                            </Center>
+                            
+                            <Title order={4} ta="center" mt="md" mb="xs" c="green.9">
+                                Tus Logros Recientes
+                            </Title>
+                            <Stack spacing="xs">
+                                {logrosList.map((logro) => (
+                                    <Paper key={logro.id} p="xs" withBorder>
+                                        <Group justify="space-between">
+                                            <Text fw={700}>
+                                                {formatDisplayDate(logro.date)}
+                                            </Text>
+                                            <Button
+                                                variant="subtle"
+                                                color="red"
+                                                size="xs"
+                                                onClick={() => handleBorrarLogro(logro.id)}
+                                                leftSection={<IconTrash size={14} />}
+                                            >
+                                                Eliminar
+                                            </Button>
+                                        </Group>
+                                        <Text size="sm">{logro.text}</Text>
+                                    </Paper>
+                                ))}
+                            </Stack>
                         </Box>
                     )}
                 </Transition>
