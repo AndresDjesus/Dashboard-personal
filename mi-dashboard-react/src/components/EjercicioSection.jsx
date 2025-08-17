@@ -1,32 +1,43 @@
-// src/components/EjercicioSection.jsx
 import React, { useState, useEffect } from 'react';
-import { NumberInput, Button, Box, Paper, Title, Group, Text } from '@mantine/core';
+import { NumberInput, Button, Box, Paper, Title, Group, Text, Textarea, Stack, ScrollArea } from '@mantine/core';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { notifications } from '@mantine/notifications';
-// Importa el nuevo icono para el botón de exportar
-import { IconBarbell, IconFileSpreadsheet } from '@tabler/icons-react';
+import { IconBarbell, IconFileSpreadsheet, IconTrash } from '@tabler/icons-react';
 
-// Importa las funciones de localStorageUtils, incluyendo la de exportar
+// Importa las funciones de localStorageUtils
 import { cargarDatos, guardarDatos, getWeekNumber, exportToXlsxWithStyle } from '../utils/localStorageUtils';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartTitle, Tooltip, Legend);
 
 const labelsDiasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
+// Función auxiliar para convertir minutos a un formato de horas y minutos
+const formatMinutes = (totalMinutes) => {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    let parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0 || totalMinutes === 0) parts.push(`${minutes}m`); // Si son 0 minutos, mostrar 0m
+    return parts.join(' ');
+};
+
 function EjercicioSection() {
-    const [horasEjercicio, setHorasEjercicio] = useState(() => {
-        const datosGuardados = cargarDatos('datosEjercicio', [0, 0, 0, 0, 0, 0, 0]);
+    // Nuevo estado para los registros de entrenamiento (objetos detallados)
+    const [weeklyRecords, setWeeklyRecords] = useState(() => {
+        const datosGuardados = cargarDatos('weeklyExerciseRecords', []);
         const ultimaActualizacion = cargarDatos('ultimaActualizacionEjercicio', null);
         const hoy = new Date();
         const ultimoDiaGuardado = ultimaActualizacion ? new Date(ultimaActualizacion) : null;
         let datosIniciales = datosGuardados;
+
         if (ultimoDiaGuardado) {
-            const esMismoAño = hoy.getFullYear() === ultimoDiaGuardado.getFullYear();
+            // Se cambió el nombre de la variable de 'esMismoAño' a 'esMismoCiclo' para mayor claridad y para evitar ambigüedad.
+            const esMismoCiclo = hoy.getFullYear() === ultimoDiaGuardado.getFullYear();
             const semanaHoy = getWeekNumber(hoy);
             const semanaUltimoGuardado = getWeekNumber(ultimoDiaGuardado);
-            if (!esMismoAño || semanaHoy !== semanaUltimoGuardado) {
-                console.log("Detectado cambio de semana/año, reiniciando horas de ejercicio.");
+            if (!esMismoCiclo || semanaHoy !== semanaUltimoGuardado) {
+                console.log("Detectado cambio de semana/año, reiniciando registros de ejercicio.");
                 notifications.show({
                     title: 'Semana de Ejercicio Reiniciada',
                     message: '¡Una nueva semana ha comenzado! Tus horas de ejercicio se han reiniciado.',
@@ -34,31 +45,40 @@ function EjercicioSection() {
                     icon: <IconBarbell size={18} />,
                     autoClose: 5000,
                 });
-                datosIniciales = [0, 0, 0, 0, 0, 0, 0];
+                datosIniciales = [];
             }
         }
-        return JSON.parse(JSON.stringify(datosIniciales));
+        return datosIniciales;
     });
 
     const [inputHoras, setInputHoras] = useState(0);
+    const [inputMinutos, setInputMinutos] = useState(0);
+    const [descripcion, setDescripcion] = useState('');
 
     useEffect(() => {
-        const currentDayIndex = new Date().getDay();
-        setInputHoras(horasEjercicio[currentDayIndex] || 0);
-    }, [horasEjercicio]);
-
-    useEffect(() => {
-        const dataToSave = JSON.parse(JSON.stringify(horasEjercicio));
-        guardarDatos('datosEjercicio', dataToSave);
+        guardarDatos('weeklyExerciseRecords', weeklyRecords);
         guardarDatos('ultimaActualizacionEjercicio', new Date().toISOString());
-        console.log("Horas de ejercicio guardadas en localStorage:", dataToSave);
-    }, [horasEjercicio]);
+        console.log("Registros de ejercicio guardados en localStorage:", weeklyRecords);
+    }, [weeklyRecords]);
+
+    // Función para procesar los datos para el gráfico
+    const processChartData = () => {
+        const dataPorDia = [0, 0, 0, 0, 0, 0, 0];
+        weeklyRecords.forEach(record => {
+            const diaIndex = new Date(record.date).getDay();
+            // Sumamos los minutos
+            dataPorDia[diaIndex] += record.durationMinutes;
+        });
+
+        // Convertir minutos totales a horas para el gráfico
+        return dataPorDia.map(minutos => (minutos / 60));
+    };
 
     const chartData = {
         labels: labelsDiasSemana,
         datasets: [{
             label: 'Horas de Ejercicio',
-            data: horasEjercicio,
+            data: processChartData(),
             backgroundColor: 'rgba(153, 102, 255, 0.6)',
             borderColor: 'rgba(153, 102, 255, 1)',
             borderWidth: 2,
@@ -100,7 +120,7 @@ function EjercicioSection() {
             tooltip: {
                 callbacks: {
                     label: function(context) {
-                        return context.dataset.label + ': ' + context.parsed.y + ' horas';
+                        return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' horas';
                     }
                 }
             }
@@ -112,41 +132,57 @@ function EjercicioSection() {
     };
 
     const handleSaveEjercicio = () => {
-        const valorNumerico = parseFloat(inputHoras);
-        if (!isNaN(valorNumerico) && valorNumerico >= 0) {
-            const diaIndex = new Date().getDay();
-            const nuevosDatosEjercicio = [...horasEjercicio];
-            nuevosDatosEjercicio[diaIndex] = valorNumerico;
-            setHorasEjercicio(nuevosDatosEjercicio);
+        const totalMinutos = (inputHoras * 60) + inputMinutos;
+
+        if (totalMinutos > 0 && descripcion.trim() !== '') {
+            const newRecord = {
+                date: new Date().toISOString(),
+                durationMinutes: totalMinutos,
+                description: descripcion.trim(),
+            };
+            setWeeklyRecords(prevRecords => [...prevRecords, newRecord]);
             notifications.show({
-                title: 'Horas de Ejercicio Registradas',
-                message: `Has registrado ${valorNumerico} horas de ejercicio para hoy.`,
+                title: 'Entrenamiento Registrado',
+                message: `Has registrado ${formatMinutes(totalMinutos)} de ejercicio.`,
                 color: 'green',
                 icon: <IconBarbell size={18} />,
             });
+            // Limpiar los inputs
+            setInputHoras(0);
+            setInputMinutos(0);
+            setDescripcion('');
         } else {
             notifications.show({
                 title: 'Error de Entrada',
-                message: 'Por favor, ingresa un número válido (0 o mayor) para las horas de ejercicio.',
+                message: 'Por favor, ingresa una duración mayor a cero y una descripción.',
                 color: 'red',
             });
         }
     };
 
-    // --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL ---
+    // Nueva función para eliminar un registro
+    const handleDeleteRecord = (recordId) => {
+        setWeeklyRecords(prevRecords => prevRecords.filter(record => record.date !== recordId));
+        notifications.show({
+            title: 'Entrenamiento Eliminado',
+            message: 'El registro de entrenamiento ha sido eliminado correctamente.',
+            color: 'red',
+            icon: <IconTrash size={18} />,
+        });
+    };
+
     const handleExportEjercicio = () => {
-        // Prepara los datos en el formato correcto para el excel
-        const dataForExport = labelsDiasSemana.map((dia, index) => ({
-            'Día de la Semana': dia,
-            'Horas de Ejercicio': horasEjercicio[index]
+        const dataForExport = weeklyRecords.map(record => ({
+            'Fecha': new Date(record.date).toLocaleDateString(),
+            'Día de la Semana': labelsDiasSemana[new Date(record.date).getDay()],
+            'Descripción': record.description,
+            'Duración (minutos)': record.durationMinutes,
+            'Duración (horas)': (record.durationMinutes / 60).toFixed(2)
         }));
         
-        const sheetName = 'Horas de Ejercicio';
-        // Obtiene la fecha de inicio de la semana para el nombre del archivo
-        // Nota: new Date().getDay() devuelve 0 para el domingo, así que para que la semana empiece en lunes,
-        // tendrías que ajustar el índice. En este caso, lo mantendremos simple para reflejar el gráfico.
+        const sheetName = 'Registros de Ejercicio';
         const weekStart = new Date(new Date().setDate(new Date().getDate() - new Date().getDay())).toISOString().split('T')[0];
-        const fileName = `horas_ejercicio_${weekStart}`;
+        const fileName = `registros_ejercicio_${weekStart}`;
         
         exportToXlsxWithStyle(dataForExport, fileName, sheetName);
     };
@@ -155,37 +191,83 @@ function EjercicioSection() {
         <Paper shadow="sm" p="lg" withBorder radius="md">
             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <IconBarbell size={28} />
-                Horas de Ejercicio Semanales
+                Registro de Entrenamiento Semanal
             </Title>
-            <Box style={{ position: 'relative', height: '300px', width: '100%' }} mb="md">
-                <Line data={chartData} options={chartOptions} />
-            </Box>
-            <Group grow mt="md">
+
+            <Group grow mt="md" mb="md" align="flex-end">
                 <NumberInput
-                    label="Horas de Ejercicio Hoy:"
-                    placeholder="Ingresa horas"
+                    label="Horas:"
+                    placeholder="0"
                     min={0}
-                    step={0.5}
                     value={inputHoras}
-                    onChange={setInputHoras}
+                    onChange={val => setInputHoras(val || 0)}
                     sx={{ flexGrow: 1 }}
                 />
+                <NumberInput
+                    label="Minutos:"
+                    placeholder="0"
+                    min={0}
+                    max={59}
+                    value={inputMinutos}
+                    onChange={val => setInputMinutos(val || 0)}
+                    sx={{ flexGrow: 1 }}
+                />
+                <Textarea
+                    label="Descripción:"
+                    placeholder="Ej. Caminata de 30 min, Levantamiento de pesas, etc."
+                    value={descripcion}
+                    onChange={(event) => setDescripcion(event.currentTarget.value)}
+                    sx={{ flexGrow: 2 }}
+                />
+            </Group>
+            <Group grow mb="md">
                 <Button onClick={handleSaveEjercicio} variant="filled" color="grape" leftSection={<IconBarbell size={16} />}>
-                    Guardar
+                    Guardar Registro
                 </Button>
-                {/* --- NUEVO BOTÓN PARA EXPORTAR --- */}
                 <Button
                     onClick={handleExportEjercicio}
                     variant="outline"
                     color="green"
                     leftSection={<IconFileSpreadsheet size={16} />}
                 >
-                    Exportar
+                    Exportar Registros
                 </Button>
             </Group>
-            <Text size="sm" c="dimmed" mt="xs" ta="center">
-                *Las horas se reinician cada inicio de semana.
-            </Text>
+
+            <Title order={3} ta="center" mt="xl" mb="md">Resumen Semanal</Title>
+            <Box style={{ position: 'relative', height: '300px', width: '100%' }} mb="md">
+                <Line data={chartData} options={chartOptions} />
+            </Box>
+            
+            <Title order={4} ta="left" mt="lg" mb="sm">Historial de Registros</Title>
+            <ScrollArea h={200} type="always">
+                <Stack spacing="xs">
+                    {weeklyRecords.length > 0 ? (
+                        [...weeklyRecords].reverse().map((record, index) => (
+                            <Paper key={index} p="xs" withBorder>
+                                <Group justify="space-between">
+                                    <Text fw={700}>
+                                        {new Date(record.date).toLocaleDateString()} ({labelsDiasSemana[new Date(record.date).getDay()]})
+                                    </Text>
+                                    <Button
+                                        variant="subtle"
+                                        color="red"
+                                        size="xs"
+                                        onClick={() => handleDeleteRecord(record.date)}
+                                        leftSection={<IconTrash size={14} />}
+                                    >
+                                        Eliminar
+                                    </Button>
+                                </Group>
+                                <Text size="sm">{record.description}</Text>
+                                <Text size="sm" c="dimmed">Duración: {formatMinutes(record.durationMinutes)}</Text>
+                            </Paper>
+                        ))
+                    ) : (
+                        <Text c="dimmed" ta="center">Aún no hay registros de entrenamiento para esta semana.</Text>
+                    )}
+                </Stack>
+            </ScrollArea>
         </Paper>
     );
 }
