@@ -38,7 +38,16 @@ import {
     IconWeight,
     IconDownload, 
     IconUpload, 
-    IconTrash 
+    IconTrash,
+    IconMenu2, // Importado para el menú principal
+    IconTools, // Importado para el menú de herramientas
+    IconHome, // Para el perfil
+    IconCurrencyDollar, // Para finanzas
+    IconClock, // Para metas
+    IconMoodSmile, // Para estado de ánimo
+    IconTrophy, // Para logros
+    IconRun, // Para ejercicio
+    IconClipboard, // Para tareas
 } from '@tabler/icons-react';
 
 // Función auxiliar para generar la URL de Dicebear
@@ -85,16 +94,16 @@ function App() {
     };
 
     const navLinks = [
-        { id: 'perfil', label: 'Mi Perfil', icon: <IconUser size={18} /> }, 
+        { id: 'perfil', label: 'Mi Perfil', icon: <IconHome size={18} /> }, 
         { id: 'estadoAnimo', label: 'Estado de Ánimo', icon: <IconMoodHappy size={18} /> },
-        { id: 'finanzas', label: 'Finanzas', icon: <IconWallet size={18} /> },
+        { id: 'finanzas', label: 'Finanzas', icon: <IconCurrencyDollar size={18} /> },
         { id: 'presupuesto', label: 'Presupuesto', icon: <IconTarget size={18} /> },
-        { id: 'metas', label: 'Mis Metas', icon: <IconTarget size={18} /> }, 
+        { id: 'metas', label: 'Mis Metas', icon: <IconClock size={18} /> }, 
         { id: 'habitos', label: 'Mis Hábitos', icon: <IconChecklist size={18} /> },
         { id: 'logros', label: 'Mis Logros', icon: <IconAward size={18} /> },
         { id: 'estudio', label: 'Horas de Estudio', icon: <IconBook2 size={18} /> },
-        { id: 'entrenamiento', label: 'Horas de Entrenamiento', icon: <IconWeight size={18} /> },
-        { id: 'tareasPendientes', label: 'Tareas Pendientes', icon: <IconChecklist size={18} /> },
+        { id: 'entrenamiento', label: 'Horas de Entrenamiento', icon: <IconRun size={18} /> },
+        { id: 'tareasPendientes', label: 'Tareas Pendientes', icon: <IconClipboard size={18} /> },
     ];
 
     const renderActiveSection = () => {
@@ -144,7 +153,10 @@ function App() {
                     </AppShell.Header>
 
                     <AppShell.Navbar p="md">
-                        <Text size="xl" fw={700} c="dimmed" mb="md">Menú</Text>
+                        <Group>
+                            <IconMenu2 size={24} />
+                            <Text size="xl" fw={700} c="dimmed">Menú</Text>
+                        </Group>
                         {navLinks.map((section) => (
                             <NavLink
                                 key={section.id}
@@ -159,7 +171,10 @@ function App() {
                             />
                         ))}
 
-                        <Text size="xl" fw={700} c="dimmed" mt="lg" mb="md">Herramientas</Text>
+                        <Group mt="lg">
+                            <IconTools size={24} />
+                            <Text size="xl" fw={700} c="dimmed">Herramientas</Text>
+                        </Group>
                         <NavLink
                             label="Exportar Todos los Datos"
                             leftSection={<IconDownload size={18} />}
