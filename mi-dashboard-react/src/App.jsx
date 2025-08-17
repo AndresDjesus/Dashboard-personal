@@ -13,7 +13,7 @@ import { ModalsProvider, modals } from '@mantine/modals';
 // Importa las funciones mejoradas de localStorageUtils
 import { clearAllData, exportAllData, importAllData, cargarDatos, guardarDatos } from './utils/localStorageUtils'; 
 
-// --- CAMBIO CLAVE: Importaciones perezosas para todas las secciones ---
+// Importa los componentes de las secciones
 const FinanzasSection = lazy(() => import('./components/FinanzasSection'));
 const PresupuestoSection = lazy(() => import('./components/PresupuestoSection'));
 const MetasSection = lazy(() => import('./components/MetasSection'));

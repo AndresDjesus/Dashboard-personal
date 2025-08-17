@@ -1,70 +1,91 @@
 // src/components/EstudioSection.jsx
 import React, { useState, useEffect } from 'react';
-import { NumberInput, Button, Box, Paper, Title, Group, Text } from '@mantine/core';
+import { NumberInput, Button, Box, Paper, Title, Group, Text, Textarea, Stack, ScrollArea } from '@mantine/core';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { notifications } from '@mantine/notifications';
-// Importamos el nuevo icono para el botón de exportar
-import { IconBook, IconFileSpreadsheet } from '@tabler/icons-react';
+// Importamos los iconos necesarios
+import { IconBook, IconFileSpreadsheet, IconTrash } from '@tabler/icons-react';
 
-// Importamos las funciones de localStorageUtils, incluyendo la de exportar
+// Importamos las funciones de localStorageUtils
 import {
     cargarDatos,
     guardarDatos,
-    getDiaActualIndex,
     getWeekNumber,
-    exportToXlsxWithStyle // <-- ¡La nueva función!
+    exportToXlsxWithStyle
 } from '../utils/localStorageUtils';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend);
 
 const labelsDiasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+// Función auxiliar para convertir minutos a un formato de horas y minutos
+const formatMinutes = (totalMinutes) => {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    let parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0 || totalMinutes === 0) parts.push(`${minutes}m`);
+    return parts.join(' ');
+};
+
 function EstudioSection() {
-    const [horasEstudio, setHorasEstudio] = useState(() => {
-        const datosGuardados = cargarDatos('datosEstudio', [0, 0, 0, 0, 0, 0, 0]);
+    // Nuevo estado para los registros de estudio (objetos detallados)
+    const [estudioRecords, setEstudioRecords] = useState(() => {
+        const datosGuardados = cargarDatos('estudioRecords', []);
         const ultimaActualizacion = cargarDatos('ultimaActualizacionEstudio', null);
         const hoy = new Date();
         const ultimoDiaGuardado = ultimaActualizacion ? new Date(ultimaActualizacion) : null;
         let datosIniciales = datosGuardados;
+
         if (ultimoDiaGuardado) {
-            const esMismoAño = hoy.getFullYear() === ultimoDiaGuardado.getFullYear();
+            // Se usó 'esMismoCiclo' para mayor claridad y evitar ambigüedad.
+            const esMismoCiclo = hoy.getFullYear() === ultimoDiaGuardado.getFullYear();
             const semanaHoy = getWeekNumber(hoy);
             const semanaUltimoGuardado = getWeekNumber(ultimoDiaGuardado);
-            if (!esMismoAño || semanaHoy !== semanaUltimoGuardado) {
-                console.log("Detectado cambio de semana/año para estudio, reiniciando horas.");
+            if (!esMismoCiclo || semanaHoy !== semanaUltimoGuardado) {
+                console.log("Detectado cambio de semana/año para estudio, reiniciando registros.");
                 notifications.show({
                     title: 'Semana de Estudio Reiniciada',
-                    message: '¡Una nueva semana ha comenzado! Tus horas de estudio se han reiniciado.',
+                    message: '¡Una nueva semana ha comenzado! Tus registros de estudio se han reiniciado.',
                     color: 'blue',
                     icon: <IconBook size={18} />,
                     autoClose: 5000,
                 });
-                datosIniciales = [0, 0, 0, 0, 0, 0, 0];
+                datosIniciales = [];
             }
         }
-        return JSON.parse(JSON.stringify(datosIniciales));
+        return datosIniciales;
     });
 
     const [inputHoras, setInputHoras] = useState(0);
+    const [inputMinutos, setInputMinutos] = useState(0);
+    const [descripcion, setDescripcion] = useState('');
 
     useEffect(() => {
-        const diaActualIndex = getDiaActualIndex();
-        setInputHoras(horasEstudio[diaActualIndex] || 0);
-    }, [horasEstudio]);
-
-    useEffect(() => {
-        const dataToSave = JSON.parse(JSON.stringify(horasEstudio));
-        guardarDatos('datosEstudio', dataToSave);
+        guardarDatos('estudioRecords', estudioRecords);
         guardarDatos('ultimaActualizacionEstudio', new Date().toISOString());
-        console.log("Horas de estudio guardadas en localStorage:", dataToSave);
-    }, [horasEstudio]);
+        console.log("Registros de estudio guardados en localStorage:", estudioRecords);
+    }, [estudioRecords]);
+
+    // Función para procesar los datos para el gráfico
+    const processChartData = () => {
+        const dataPorDia = [0, 0, 0, 0, 0, 0, 0];
+        estudioRecords.forEach(record => {
+            // Ajustamos para que la semana comience en Lunes (1) y termine en Domingo (0)
+            const diaIndex = new Date(record.date).getDay();
+            const ajustedIndex = diaIndex === 0 ? 6 : diaIndex - 1;
+            // Sumamos los minutos
+            dataPorDia[ajustedIndex] += record.durationMinutes;
+        });
+        return dataPorDia.map(minutos => (minutos / 60));
+    };
 
     const chartData = {
         labels: labelsDiasSemana,
         datasets: [{
             label: 'Horas de Estudio',
-            data: horasEstudio,
+            data: processChartData(),
             backgroundColor: 'rgba(75, 192, 192, 0.6)',
             borderColor: 'rgba(75, 192, 192, 1)',
             borderWidth: 1,
@@ -100,7 +121,7 @@ function EstudioSection() {
             tooltip: {
                 callbacks: {
                     label: function(context) {
-                        return context.dataset.label + ': ' + context.parsed.y + ' horas';
+                        return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' horas';
                     }
                 }
             }
@@ -112,39 +133,60 @@ function EstudioSection() {
     };
 
     const handleSaveEstudio = () => {
-        const valorNumerico = parseFloat(inputHoras);
-        if (!isNaN(valorNumerico) && valorNumerico >= 0) {
-            const diaActualIndex = getDiaActualIndex();
-            const nuevosDatosEstudio = [...horasEstudio]; // Copia el array
-            nuevosDatosEstudio[diaActualIndex] = valorNumerico;
-            setHorasEstudio(nuevosDatosEstudio);
+        // Se calcula la duración total en minutos para guardarla
+        const totalMinutos = (inputHoras * 60) + inputMinutos;
+
+        if (totalMinutos > 0 && descripcion.trim() !== '') {
+            const newRecord = {
+                date: new Date().toISOString(),
+                durationMinutes: totalMinutos,
+                description: descripcion.trim(),
+            };
+            setEstudioRecords(prevRecords => [...prevRecords, newRecord]);
             notifications.show({
-                title: 'Horas de Estudio Registradas',
-                message: `Has registrado ${valorNumerico} horas de estudio para hoy.`,
+                title: 'Estudio Registrado',
+                // Se utiliza la función formatMinutes para mostrar la duración de forma consistente
+                message: `Has registrado ${formatMinutes(totalMinutos)} de estudio.`,
                 color: 'green',
                 icon: <IconBook size={18} />,
             });
+            // Limpiar los inputs
+            setInputHoras(0);
+            setInputMinutos(0);
+            setDescripcion('');
         } else {
             notifications.show({
                 title: 'Error de Entrada',
-                message: 'Por favor, ingresa un número válido (0 o mayor) para las horas de estudio.',
+                message: 'Por favor, ingresa una duración mayor a cero y una descripción.',
                 color: 'red',
             });
         }
     };
 
-    // --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL ---
+    // Función para eliminar un registro
+    const handleDeleteRecord = (recordId) => {
+        setEstudioRecords(prevRecords => prevRecords.filter(record => record.date !== recordId));
+        notifications.show({
+            title: 'Registro Eliminado',
+            message: 'El registro de estudio ha sido eliminado correctamente.',
+            color: 'red',
+            icon: <IconTrash size={18} />,
+        });
+    };
+
+    // Función para exportar los registros
     const handleExportEstudio = () => {
-        // Prepara los datos en el formato correcto para el excel
-        const dataForExport = labelsDiasSemana.map((dia, index) => ({
-            'Día de la Semana': dia,
-            'Horas de Estudio': horasEstudio[index]
+        const dataForExport = estudioRecords.map(record => ({
+            'Fecha': new Date(record.date).toLocaleDateString(),
+            'Día de la Semana': labelsDiasSemana[new Date(record.date).getDay() === 0 ? 6 : new Date(record.date).getDay() - 1],
+            'Descripción': record.description,
+            'Duración (minutos)': record.durationMinutes,
+            'Duración (horas)': (record.durationMinutes / 60).toFixed(2)
         }));
         
-        const sheetName = 'Horas de Estudio';
-        // Obtiene la fecha de inicio de la semana para el nombre del archivo
-        const weekStart = new Date(new Date().setDate(new Date().getDate() - getDiaActualIndex())).toISOString().split('T')[0];
-        const fileName = `horas_estudio_${weekStart}`;
+        const sheetName = 'Registros de Estudio';
+        const weekStart = new Date(new Date().setDate(new Date().getDate() - new Date().getDay())).toISOString().split('T')[0];
+        const fileName = `registros_estudio_${weekStart}`;
         
         exportToXlsxWithStyle(dataForExport, fileName, sheetName);
     };
@@ -153,37 +195,86 @@ function EstudioSection() {
         <Paper shadow="sm" p="lg" withBorder radius="md">
             <Title order={2} ta="center" mb="md" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <IconBook size={28} />
-                Horas de Estudio Semanales
+                Registro de Estudio Semanal
             </Title>
-            <Box style={{ position: 'relative', height: '300px', width: '100%' }} mb="md">
-                <Bar key={JSON.stringify(horasEstudio)} data={chartData} options={chartOptions} />
-            </Box>
-            <Group grow mt="md">
+            
+            <Group grow mt="md" mb="md" align="flex-end">
                 <NumberInput
-                    label="Horas de Estudio Hoy:"
-                    placeholder="Ingresa horas"
+                    label="Horas:"
+                    placeholder="0"
                     min={0}
-                    step={0.5}
                     value={inputHoras}
-                    onChange={setInputHoras}
+                    onChange={val => setInputHoras(val || 0)}
                     sx={{ flexGrow: 1 }}
                 />
+                <NumberInput
+                    label="Minutos:"
+                    placeholder="0"
+                    min={0}
+                    max={59}
+                    value={inputMinutos}
+                    onChange={val => setInputMinutos(val || 0)}
+                    sx={{ flexGrow: 1 }}
+                />
+                <Textarea
+                    label="Descripción:"
+                    placeholder="Ej. Repaso de álgebra, Lectura de un capítulo, etc."
+                    value={descripcion}
+                    onChange={(event) => setDescripcion(event.currentTarget.value)}
+                    sx={{ flexGrow: 2 }}
+                />
+            </Group>
+            
+            <Group grow mb="md">
                 <Button onClick={handleSaveEstudio} variant="filled" color="teal" leftSection={<IconBook size={16} />}>
-                    Guardar
+                    Guardar Registro
                 </Button>
-                {/* --- NUEVO BOTÓN PARA EXPORTAR --- */}
                 <Button
                     onClick={handleExportEstudio}
                     variant="outline"
                     color="green"
                     leftSection={<IconFileSpreadsheet size={16} />}
                 >
-                    Exportar
+                    Exportar Registros
                 </Button>
             </Group>
-            <Text size="sm" c="dimmed" mt="xs" ta="center">
-                *Las horas se reinician cada inicio de semana.
-            </Text>
+
+            <Title order={3} ta="center" mt="xl" mb="md">Resumen Semanal</Title>
+            <Box style={{ position: 'relative', height: '300px', width: '100%' }} mb="md">
+                <Bar data={chartData} options={chartOptions} />
+            </Box>
+            
+            <Title order={4} ta="left" mt="lg" mb="sm">Historial de Registros</Title>
+            <ScrollArea h={200} type="always">
+                <Stack spacing="xs">
+                    {estudioRecords.length > 0 ? (
+                        [...estudioRecords].reverse().map((record, index) => (
+                            <Paper key={index} p="xs" withBorder>
+                                <Group justify="space-between">
+                                    <Text fw={700}>
+                                        {new Date(record.date).toLocaleDateString()} ({labelsDiasSemana[new Date(record.date).getDay() === 0 ? 6 : new Date(record.date).getDay() - 1]})
+                                    </Text>
+                                    <Button
+                                        variant="subtle"
+                                        color="red"
+                                        size="xs"
+                                        onClick={() => handleDeleteRecord(record.date)}
+                                        leftSection={<IconTrash size={14} />}
+                                    >
+                                        Eliminar
+                                    </Button>
+                                </Group>
+                                <Text size="sm">{record.description}</Text>
+                                <Text size="sm" c="dimmed">
+                                    Duración: {formatMinutes(record.durationMinutes)} ({record.durationMinutes} minutos)
+                                </Text>
+                            </Paper>
+                        ))
+                    ) : (
+                        <Text c="dimmed" ta="center">Aún no hay registros de estudio para esta semana.</Text>
+                    )}
+                </Stack>
+            </ScrollArea>
         </Paper>
     );
 }
