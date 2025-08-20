@@ -1,11 +1,11 @@
 // src/components/EstudioSection.jsx
 import React, { useState, useEffect } from 'react';
-import { NumberInput, Button, Box, Paper, Title, Group, Text, Textarea, Stack, ScrollArea } from '@mantine/core';
+import { NumberInput, Button, Box, Paper, Title, Group, Text, Textarea, Stack, ScrollArea, Center } from '@mantine/core';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
 import { notifications } from '@mantine/notifications';
-// Importamos los iconos necesarios
-import { IconBook, IconFileSpreadsheet, IconTrash } from '@tabler/icons-react';
+// Importamos los iconos necesarios, incluyendo el de alarma
+import { IconBook, IconFileSpreadsheet, IconTrash, IconAlarm } from '@tabler/icons-react';
 
 // Importamos las funciones de localStorageUtils
 import {
@@ -68,6 +68,30 @@ function EstudioSection() {
         console.log("Registros de estudio guardados en localStorage:", estudioRecords);
     }, [estudioRecords]);
 
+    // --- NUEVA LÓGICA DE RECORDATORIOS ---
+    useEffect(() => {
+        const records = estudioRecords;
+        const now = Date.now();
+        const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
+        
+        if (records.length > 0) {
+            const lastRecord = records[records.length - 1];
+            const lastRecordTime = new Date(lastRecord.date).getTime();
+            
+            // Si han pasado más de 24 horas desde el último registro, muestra la notificación.
+            if (now - lastRecordTime > oneDayInMilliseconds) {
+                notifications.show({
+                    title: '¡Es hora de estudiar!',
+                    message: 'Hace más de 24 horas que no registras tu tiempo de estudio. ¡A seguir aprendiendo!',
+                    color: 'orange',
+                    icon: <IconAlarm size={18} />,
+                    autoClose: 10000, // La notificación se cerrará después de 10 segundos
+                });
+            }
+        }
+    }, [estudioRecords]);
+    // --- FIN DE LA NUEVA LÓGICA DE RECORDATORIOS ---
+
     // Función para procesar los datos para el gráfico
     const processChartData = () => {
         const dataPorDia = [0, 0, 0, 0, 0, 0, 0];
@@ -124,7 +148,7 @@ function EstudioSection() {
                         return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' horas';
                     }
                 }
-            }
+            },
         },
         animation: {
             duration: 1000,
@@ -241,7 +265,13 @@ function EstudioSection() {
 
             <Title order={3} ta="center" mt="xl" mb="md">Resumen Semanal</Title>
             <Box style={{ position: 'relative', height: '300px', width: '100%' }} mb="md">
-                <Bar data={chartData} options={chartOptions} />
+                {estudioRecords.length > 0 ? (
+                    <Bar data={chartData} options={chartOptions} />
+                ) : (
+                    <Center style={{ height: '100%' }}>
+                        <Text c="dimmed">Registra tus horas de estudio para ver el gráfico.</Text>
+                    </Center>
+                )}
             </Box>
             
             <Title order={4} ta="left" mt="lg" mb="sm">Historial de Registros</Title>
@@ -266,7 +296,7 @@ function EstudioSection() {
                                 </Group>
                                 <Text size="sm">{record.description}</Text>
                                 <Text size="sm" c="dimmed">
-                                    Duración: {formatMinutes(record.durationMinutes)} ({record.durationMinutes} minutos)
+                                    Duración: {formatMinutes(record.durationMinutes)}
                                 </Text>
                             </Paper>
                         ))
